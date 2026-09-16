@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>流场粒子 · Flow Field</title>
+<style>
+  :root{ --bg:#10131a; --card:#181c26; --line:#262c3a; --txt:#e6e9f0; --mut:#8b94a7; --acc:#5b8cff; }
+  *{ box-sizing:border-box; margin:0; }
+  body{ background:var(--bg); color:var(--txt); font-family:"Segoe UI","Microsoft YaHei",sans-serif; min-height:100vh; }
+  header{ padding:20px 28px; border-bottom:1px solid var(--line); display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  header h1{ font-size:18px; }
+  header .mut{ color:var(--mut); font-size:13px; }
+  main{ display:grid; grid-template-columns:360px 1fr; min-height:calc(100vh - 62px); }
+  #panel{ padding:20px 24px; border-right:1px solid var(--line); background:#141822; overflow:auto; }
+  #panel h2{ font-size:14px; color:var(--mut); margin-bottom:14px; font-weight:600; }
+  .ctrl{ margin-bottom:16px; }
+  .ctrl label{ display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px; }
+  .ctrl label b{ color:var(--acc); font-weight:600; }
+  input[type=range]{ width:100%; accent-color:var(--acc); }
+  select{ width:100%; background:var(--card); color:var(--txt); border:1px solid var(--line); padding:8px; border-radius:8px; font-size:13px; }
+  .row{ display:flex; gap:10px; margin-top:6px; }
+  button{ flex:1; background:var(--card); color:var(--txt); border:1px solid var(--line); padding:9px 0; border-radius:8px; cursor:pointer; font-size:13px; }
+  button:hover{ border-color:var(--acc); color:var(--acc); }
+  .seed-btn{ background:#20263a; border-color:#3a4363; }
+  #canvasWrap{ display:flex; align-items:center; justify-content:center; padding:24px; }
+  canvas{ background:#000; border-radius:10px; max-width:100%; box-shadow:0 10px 30px rgba(0,0,0,.5); }
+  @media (max-width:900px){ main{ grid-template-columns:1fr; } #panel{ border-right:none; border-bottom:1px solid var(--line); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>流场粒子 · Flow Field</h1>
+  <span class="mut">粒子沿噪声场流动 · 程序化作图实验 #1</span>
+</header>
+<main>
+  <aside id="panel">
+    <h2>参数面板</h2>
+    <div id="controls"></div>
+    <div class="row">
+      <button id="resetSeed" class="seed-btn">🔀 重置种子</button>
+      <button id="redraw">⟳ 重绘</button>
+    </div>
+  </aside>
+  <section id="canvasWrap"><canvas id="cv"></canvas></section>
+</main>
+
+<script>
+"use strict";
+// ===== 参数定义 =====
+const PARAMS = {
+  粒子数量:  { type:"range", min:100,  max:6000, step:100, value:1400 },
+  流场密度:  { type:"range", min:0.001, max:0.012, step:0.0005, value:0.004 },
+  噪声强度:  { type:"range", min:0.5,  max:8,    step:0.1,  value:3.0 },
+  轨迹长度:  { type:"range", min:2,    max:18,   step:1,    value:12 },
+  轨迹宽度:  { type:"range", min:0.3,  max:2.5,  step:0.1,  value:1.1 },
+  速度:      { type:"range", min:0.4,  max:3,    step:0.1,  value:1.6 },
+  颜色模式:  { type:"select", options:["蓝紫","霓虹","暖橙","青绿"], value:"蓝紫" },
+  透明度:    { type:"range", min:0.1,  max:0.5,  step:0.01, value:0.28 },
+};
+
+// ===== 画布初始化 =====
+const wrap = document.getElementById("canvasWrap");
+const cv = document.getElementById("cv");
+const ctx = cv.getContext("2d");
+const DPR = window.devicePixelRatio || 1;
+function sizeCanvas(){
+  const w = Math.min(wrap.clientWidth - 48, 1100);
+  const h = Math.min(window.innerHeight - 110, 800);
+  cv.width = w * DPR; cv.height = h * DPR;
+  cv.style.width = w + "px"; cv.style.height = h + "px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener("resize", ()=>{ sizeCanvas(); draw(); });
+
+// ===== 参数面板 =====
+const controls = document.getElementById("controls");
+function buildPanel(){
+  controls.innerHTML = "";
+  for (const [name, p] of Object.entries(PARAMS)){
+    const box = document.createElement("div"); box.className = "ctrl";
+    const lab = document.createElement("label");
+    if(p.type==="select"){
+      lab.textContent = name + "：";
+      const sel = document.createElement("select");
+      p.options.forEach(o => { const op=document.createElement("option"); op.textContent=o; op.selected=(o===p.value); sel.appendChild(op); });
+      sel.onchange = ()=>{ p.value = sel.value; draw(); };
+      lab.appendChild(sel);
+      box.appendChild(lab); controls.appendChild(box); continue;
+    }
+    lab.innerHTML = `${name}：<b id="${name}Val"></b>`;
+    const input = document.createElement("input"); input.type="range";
+    input.min=p.min; input.max=p.max; input.step=p.step; input.value=p.value;
+    input.addEventListener("input", ()=>{ p.value=+input.value; labelVal(name,p); draw(); });
+    box.appendChild(lab); box.appendChild(input); controls.appendChild(box);
+    labelVal(name,p);
+  }
+}
+function labelVal(name,p){ const el=document.getElementById(name+"Val"); if(el) el.textContent=(Math.round(p.value*100)/100); }
+document.getElementById("resetSeed").onclick=()=>{ seed=Math.floor(Math.random()*1e9); draw(); };
+document.getElementById("redraw").onclick=draw;
+
+// ===== 可复现噪声（确定性，随种子变化） =====
+let seed = 42;
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; var t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+// 确定性2D值噪声 + 平滑插值
+let noiseHash = [];
+function buildNoise(){
+  const rnd = mulberry32(seed);
+  noiseHash = new Float32Array(512);
+  for(let i=0;i<512;i++) noiseHash[i]=rnd();
+}
+function smooth(t){ return t*t*(3-2*t); }
+function vnoise(x,y){
+  const xi=Math.floor(x), yi=Math.floor(y);
+  const xf=x-xi, yf=y-yi;
+  const a=noiseHash[(xi&255)], b=noiseHash[((xi+1)&255)];
+  const c=noiseHash[(yi&255)], d=noiseHash[((yi+1)&255)];
+  return smooth(xf)*(smooth(yf)*a+(1-smooth(yf))*b) + (1-smooth(xf))*(smooth(yf)*c+(1-smooth(yf))*d);
+}
+
+// ===== 配色 =====
+const PALETTES = {
+  "蓝紫": c=>`hsl(${220 + (c%60)},90%,${55+c*8}%)`,
+  "霓虹": c=>`hsl(${(c*80)%360},100%,60%)`,
+  "暖橙": c=>`hsl(${28 - (c%14)},95%,${50+c*6}%)`,
+  "青绿": c=>`hsl(${150 + (c%60)},85%,${50+c*8}%)`,
+};
+
+// ===== 主绘制 =====
+function draw(){
+  const W = cv.width/DPR, H = cv.height/DPR;
+  ctx.clearRect(0,0,W,H);
+  buildNoise();
+  const count = PARAMS["粒子数量"].value;
+  const dens = PARAMS["流场密度"].value;
+  const strength = PARAMS["噪声强度"].value;
+  const len = PARAMS["轨迹长度"].value;
+  const stroke = PARAMS["轨迹宽度"].value;
+  const spd = PARAMS["速度"].value;
+  const alpha = PARAMS["透明度"].value;
+  const colorer = PALETTES[PARAMS["颜色模式"].value];
+
+  ctx.globalCompositeOperation = "lighter";
+  ctx.lineCap = "round";
+  const scale = Math.min(W,H) * 0.002; // 使速度在不同画布尺寸下视觉一致
+  for (let i=0;i<count;i++){
+    let x = Math.random()*W, y = Math.random()*H;
+    const c0 = Math.random();
+    ctx.strokeStyle = colorer(c0);
+    ctx.lineWidth = stroke;
+    ctx.globalAlpha = alpha;
+    ctx.beginPath(); ctx.moveTo(x,y);
+    for (let s=0;s<len;s++){
+      const a = vnoise(x*dens, y*dens) * Math.PI * 2 * strength / 4;
+      x += Math.cos(a)*spd*scale;
+      y += Math.sin(a)*spd*scale;
+      if (x<0||x>W||y<0||y>H) break;
+      ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
+}
+
+sizeCanvas(); buildPanel(); draw();
+</script>
+</body>
+</html>
