@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>雪花参数调节</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: #0a1526; color: #dbe6f5;
+    font-family: system-ui, -apple-system, "PingFang SC", sans-serif;
+    display: flex; flex-wrap: wrap;
+    justify-content: center; align-items: center;
+    gap: 48px; padding: 40px;
+  }
+  .stage {
+    width: 420px; height: 420px; flex: 0 0 auto;
+    background: #06101f;
+    border-radius: 20px;
+    display: flex; justify-content: center; align-items: center;
+    box-shadow: inset 0 0 0 1px #1a2b44;
+  }
+  .panel { width: 320px; display: flex; flex-direction: column; gap: 15px; }
+  .row { display: flex; flex-direction: column; gap: 7px; }
+  .row label {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 13px; color: #8ea3c2;
+  }
+  .row label b {
+    color: #8fd0ff; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 4px; border-radius: 2px;
+    background: #1a2b44; outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #8fd0ff; cursor: pointer;
+    box-shadow: 0 0 0 3px rgba(143,208,255,0.15);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 16px; height: 16px; border: none; border-radius: 50%;
+    background: #8fd0ff; cursor: pointer;
+  }
+  .colors { display: flex; gap: 12px; }
+  .colors .row { flex: 1; }
+  input[type=color] {
+    width: 100%; height: 34px; padding: 2px;
+    border: 1px solid #1a2b44; border-radius: 8px;
+    background: #0d1a2e; cursor: pointer;
+  }
+  button {
+    margin-top: 4px; padding: 10px;
+    background: #12233c; color: #b9cbe6;
+    border: 1px solid #1f3555; border-radius: 10px;
+    cursor: pointer; font-size: 13px;
+  }
+  button:hover { background: #1a2f4d; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <svg id="snow" width="380" height="380" viewBox="0 0 200 200"></svg>
+</div>
+
+<div class="panel">
+  <div class="row">
+    <label>对称臂数 <b id="v-symmetry">8</b></label>
+    <input type="range" id="symmetry" min="3" max="16" step="1" value="8">
+  </div>
+  <div class="row">
+    <label>主臂长度 <b id="v-armLength">62</b></label>
+    <input type="range" id="armLength" min="20" max="90" step="1" value="62">
+  </div>
+  <div class="row">
+    <label>线条粗细 <b id="v-armWidth">2.6</b></label>
+    <input type="range" id="armWidth" min="0.3" max="5" step="0.1" value="2.6">
+  </div>
+  <div class="row">
+    <label>分支数量（每侧） <b id="v-branchCount">5</b></label>
+    <input type="range" id="branchCount" min="0" max="12" step="1" value="5">
+  </div>
+  <div class="row">
+    <label>分支长度 <b id="v-branchLength">12</b></label>
+    <input type="range" id="branchLength" min="0" max="40" step="1" value="12">
+  </div>
+  <div class="row">
+    <label>分支张开角度 <b id="v-branchAngle">56°</b></label>
+    <input type="range" id="branchAngle" min="20" max="80" step="1" value="56">
+  </div>
+  <div class="row">
+    <label>分支递减比例 <b id="v-branchScale">0.65</b></label>
+    <input type="range" id="branchScale" min="0.3" max="1" step="0.05" value="0.65">
+  </div>
+  <div class="row">
+    <label>尖端 V 形 <b id="v-tipV">4</b></label>
+    <input type="range" id="tipV" min="0" max="20" step="1" value="4">
+  </div>
+  <div class="row">
+    <label>中心半径 <b id="v-hubRadius">9</b></label>
+    <input type="range" id="hubRadius" min="0" max="15" step="0.5" value="9">
+  </div>
+  <div class="colors">
+    <div class="row">
+      <label>线条颜色</label>
+      <input type="color" id="color" value="#d6ecff">
+    </div>
+    <div class="row">
+      <label>背景颜色</label>
+      <input type="color" id="background" value="#06101f">
+    </div>
+  </div>
+  <button id="reset">恢复默认</button>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const svg = $('snow');
+const stage = document.querySelector('.stage');
+const CX = 100, CY = 100;
+
+/* ===== 默认参数：本次截图这一套 ===== */
+const DEFAULTS = {
+  symmetry: 8,
+  armLength: 62,
+  armWidth: 2.6,
+  branchCount: 5,
+  branchLength: 12,
+  branchAngle: 56,
+  branchScale: 0.65,
+  tipV: 4,
+  hubRadius: 9,
+  color: '#d6ecff',
+  background: '#06101f'
+};
+
+/* 生成一条“指向上方”的臂路径（局部坐标，原点在圆心） */
+function buildArmD(armLength, branchCount, branchLength, branchAngle, branchScale, tipV) {
+  const parts = [];
+  parts.push(`M 0 0 L 0 ${(-armLength).toFixed(2)}`);
+
+  if (branchCount > 0 && branchLength > 0) {
+    const startRatio = 0.28;
+    const endRatio   = branchCount <= 6 ? 0.78 : 0.84;
+
+    for (let i = 0; i < branchCount; i++) {
+      const ratio = branchCount === 1
+        ? 0.55
+        : startRatio + (endRatio - startRatio) * i / (branchCount - 1);
+      const y = -armLength * ratio;
+      const len = branchLength * Math.pow(branchScale, i);
+      const aL = (-90 - branchAngle) * Math.PI / 180;
+      const aR = (-90 + branchAngle) * Math.PI / 180;
+      parts.push(`M 0 ${y.toFixed(2)} L ${(len*Math.cos(aL)).toFixed(2)} ${(y + len*Math.sin(aL)).toFixed(2)}`);
+      parts.push(`M 0 ${y.toFixed(2)} L ${(len*Math.cos(aR)).toFixed(2)} ${(y + len*Math.sin(aR)).toFixed(2)}`);
+    }
+  }
+
+  if (tipV > 0) {
+    const a = 55 * Math.PI / 180;
+    const aL = -Math.PI/2 - a;
+    const aR = -Math.PI/2 + a;
+    parts.push(`M 0 ${(-armLength).toFixed(2)} L ${(tipV*Math.cos(aL)).toFixed(2)} ${(-armLength + tipV*Math.sin(aL)).toFixed(2)}`);
+    parts.push(`M 0 ${(-armLength).toFixed(2)} L ${(tipV*Math.cos(aR)).toFixed(2)} ${(-armLength + tipV*Math.sin(aR)).toFixed(2)}`);
+  }
+
+  return parts.join(' ');
+}
+
+function render() {
+  const symmetry     = +$('symmetry').value;
+  const armLength    = +$('armLength').value;
+  const armWidth     = +$('armWidth').value;
+  const branchCount  = +$('branchCount').value;
+  const branchLength = +$('branchLength').value;
+  const branchAngle  = +$('branchAngle').value;
+  const branchScale  = +$('branchScale').value;
+  const tipV         = +$('tipV').value;
+  const hubRadius    = +$('hubRadius').value;
+  const color        = $('color').value;
+  const background   = $('background').value;
+
+  $('v-symmetry').textContent     = symmetry;
+  $('v-armLength').textContent    = armLength;
+  $('v-armWidth').textContent     = armWidth.toFixed(1);
+  $('v-branchCount').textContent  = branchCount;
+  $('v-branchLength').textContent = branchLength;
+  $('v-branchAngle').textContent  = branchAngle + '°';
+  $('v-branchScale').textContent  = branchScale.toFixed(2);
+  $('v-tipV').textContent         = tipV;
+  $('v-hubRadius').textContent    = hubRadius;
+
+  stage.style.background = background;
+
+  const d = buildArmD(armLength, branchCount, branchLength, branchAngle, branchScale, tipV);
+
+  let inner = `<rect width="200" height="200" fill="${background}"/>`;
+  inner += `<g stroke="${color}" stroke-width="${armWidth}" stroke-linecap="round" stroke-linejoin="round" fill="none">`;
+
+  if (hubRadius > 0) {
+    inner += `<circle cx="${CX}" cy="${CY}" r="${hubRadius}"/>`;
+  }
+
+  const step = 360 / symmetry;
+  for (let i = 0; i < symmetry; i++) {
+    const rot = i * step;
+    inner += `<g transform="translate(${CX} ${CY}) rotate(${rot.toFixed(4)})">`;
+    inner += `<path d="${d}"/>`;
+    inner += `</g>`;
+  }
+
+  inner += `</g>`;
+  svg.innerHTML = inner;
+}
+
+function applyDefaults() {
+  Object.entries(DEFAULTS).forEach(([k, v]) => { $(k).value = v; });
+  render();
+}
+
+['symmetry','armLength','armWidth','branchCount','branchLength','branchAngle',
+ 'branchScale','tipV','hubRadius','color','background'].forEach(id => {
+  $(id).addEventListener('input', render);
+});
+
+$('reset').addEventListener('click', applyDefaults);
+
+applyDefaults();
+</script>
+
+</body>
+</html>
