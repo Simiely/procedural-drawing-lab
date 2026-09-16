@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>星芒参数调节</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: #16181d; color: #e8eaf0;
+    font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", sans-serif;
+    display: flex; flex-wrap: wrap;
+    justify-content: center; align-items: center;
+    gap: 48px; padding: 40px;
+  }
+  .stage {
+    width: 360px; height: 360px; flex: 0 0 auto;
+    background: #0e1014; border-radius: 20px;
+    display: flex; justify-content: center; align-items: center;
+    box-shadow: inset 0 0 0 1px #262a33;
+  }
+  .panel { width: 320px; display: flex; flex-direction: column; gap: 16px; }
+  .row { display: flex; flex-direction: column; gap: 7px; }
+  .row label {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 13px; color: #a8b0bf;
+  }
+  .row label b {
+    color: #ffd24a; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 4px; border-radius: 2px;
+    background: #2b303a; outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #ffd24a; cursor: pointer;
+    box-shadow: 0 0 0 3px rgba(255,210,74,0.15);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 16px; height: 16px; border: none; border-radius: 50%;
+    background: #ffd24a; cursor: pointer;
+  }
+  .colors { display: flex; gap: 12px; }
+  .colors .row { flex: 1; }
+  input[type=color] {
+    width: 100%; height: 34px; padding: 2px;
+    border: 1px solid #2b303a; border-radius: 8px;
+    background: #1b1e25; cursor: pointer;
+  }
+  button {
+    margin-top: 4px; padding: 10px;
+    background: #23272f; color: #cfd6e2;
+    border: 1px solid #2f343e; border-radius: 10px;
+    cursor: pointer; font-size: 13px;
+  }
+  button:hover { background: #2b303a; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <svg id="star" width="320" height="320" viewBox="0 0 200 200">
+    <g id="spikes"></g>
+    <circle id="hub" cx="100" cy="100" r="34" fill="#ffd24a"/>
+  </svg>
+</div>
+
+<div class="panel">
+  <div class="row">
+    <label>尖角数量 <b id="v-count">6</b></label>
+    <input type="range" id="count" min="3" max="12" step="1" value="6">
+  </div>
+  <div class="row">
+    <label>中心圆半径 <b id="v-r">34</b></label>
+    <input type="range" id="r" min="0" max="70" step="1" value="34">
+  </div>
+  <div class="row">
+    <label>尖角长度（顶点半径） <b id="v-R">88</b></label>
+    <input type="range" id="R" min="40" max="98" step="1" value="88">
+  </div>
+  <div class="row">
+    <label>尖角基部半角 <b id="v-a">11°</b></label>
+    <input type="range" id="a" min="3" max="28" step="1" value="11">
+  </div>
+  <div class="row">
+    <label>内凹程度 <b id="v-c">70%</b></label>
+    <input type="range" id="c" min="0" max="100" step="1" value="70">
+  </div>
+  <div class="colors">
+    <div class="row">
+      <label>图形颜色</label>
+      <input type="color" id="fill" value="#ffd24a">
+    </div>
+    <div class="row">
+      <label>背景颜色</label>
+      <input type="color" id="bg" value="#0e1014">
+    </div>
+  </div>
+  <button id="reset">恢复默认</button>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const hub = $('hub');
+const spikes = $('spikes');
+const stage = document.querySelector('.stage');
+
+const CX = 100, CY = 100;
+
+const DEFAULTS = {
+  count: 6, r: 34, R: 88, a: 11, c: 70,
+  fill: '#ffd24a', bg: '#0e1014'
+};
+
+/* 生成单个“指向上方”的尖角路径 */
+function spikePath(r, R, alphaDeg, concave) {
+  const alpha = alphaDeg * Math.PI / 180;
+
+  // 基部两个端点，落在中心圆上（相对中轴对称）
+  const x1 = CX - r * Math.sin(alpha);
+  const y1 = CY - r * Math.cos(alpha);
+  const x2 = CX + r * Math.sin(alpha);
+  const y2 = CY - r * Math.cos(alpha);
+
+  // 顶点
+  const tx = CX;
+  const ty = CY - R;
+
+  // 两条腰：控制点由“直线中点”向中轴收拢 concave 比例
+  const m1x = (x1 + tx) / 2, m1y = (y1 + ty) / 2;
+  const c1x = m1x + concave * (CX - m1x);
+  const c1y = m1y;
+
+  const m2x = (x2 + tx) / 2, m2y = (y2 + ty) / 2;
+  const c2x = m2x + concave * (CX - m2x);
+  const c2y = m2y;
+
+  // 闭合段：r 足够大时用圆弧（与中心圆共形）；
+  // r 过小（尤其 r=0）时圆弧退化，改用直线，避免渲染异常
+  const close = r >= 0.5
+    ? `A ${r} ${r} 0 0 0 ${x1.toFixed(3)} ${y1.toFixed(3)}`
+    : `L ${x1.toFixed(3)} ${y1.toFixed(3)}`;
+
+  return `M ${x1.toFixed(3)} ${y1.toFixed(3)}`
+       + ` Q ${c1x.toFixed(3)} ${c1y.toFixed(3)} ${tx} ${ty}`
+       + ` Q ${c2x.toFixed(3)} ${c2y.toFixed(3)} ${x2.toFixed(3)} ${y2.toFixed(3)}`
+       + ` ${close} Z`;
+}
+
+function render() {
+  const count = +$('count').value;
+  let r = +$('r').value;
+  let R = +$('R').value;
+  let a = +$('a').value;
+  const concave = +$('c').value / 100;
+  const fill = $('fill').value;
+  const bg = $('bg').value;
+
+  // —— 约束 ——
+  // 顶点半径必须大于中心圆半径（留出至少 4 的尖角高度）
+  if (R < r + 4) { R = Math.min(r + 4, 98); $('R').value = R; }
+  // 基部半角不能大到让相邻尖角重叠
+  const maxAlpha = Math.min(28, 180 / count - 1);
+  if (a > maxAlpha) { a = Math.floor(maxAlpha); $('a').value = a; }
+
+  // —— 数值回显 ——
+  $('v-count').textContent = count;
+  $('v-r').textContent = r;
+  $('v-R').textContent = R;
+  $('v-a').textContent = a + '°';
+  $('v-c').textContent = Math.round(concave * 100) + '%';
+
+  // —— 应用 ——
+  stage.style.background = bg;
+  hub.setAttribute('r', r);
+  hub.setAttribute('fill', fill);
+
+  const d = spikePath(r, R, a, concave);
+  const step = 360 / count;
+  let html = '';
+  for (let i = 0; i < count; i++) {
+    const rot = i * step;
+    html += `<path d="${d}" fill="${fill}"`
+          + (rot ? ` transform="rotate(${rot.toFixed(3)} ${CX} ${CY})"` : '')
+          + `/>`;
+  }
+  spikes.innerHTML = html;
+}
+
+['count', 'r', 'R', 'a', 'c', 'fill', 'bg'].forEach(id => {
+  $(id).addEventListener('input', render);
+});
+
+$('reset').addEventListener('click', () => {
+  Object.entries(DEFAULTS).forEach(([k, v]) => { $(k).value = v; });
+  render();
+});
+
+render();
+</script>
+
+</body>
+</html>
