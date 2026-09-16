@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>程序化作图前哨实验场</title>
+<style>
+  :root{ --bg:#0e1116; --card:#171c26; --line:#262d3b; --txt:#e8ecf3; --mut:#8a94a8; --acc:#5b8cff; --acc2:#7c6bff; }
+  *{ box-sizing:border-box; margin:0; }
+  body{ background:var(--bg); color:var(--txt); font-family:"Segoe UI","Microsoft YaHei",sans-serif; min-height:100vh; }
+  .wrap{ max-width:1200px; margin:0 auto; padding:36px 28px 60px; }
+  header h1{ font-size:26px; letter-spacing:.5px; }
+  header h1 span{ background:linear-gradient(90deg,var(--acc),var(--acc2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  header p{ color:var(--mut); margin-top:8px; font-size:14px; line-height:1.7; max-width:720px; }
+  .tags{ display:flex; flex-wrap:wrap; gap:10px; margin:26px 0 22px; }
+  .tag{ padding:7px 16px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--mut); font-size:13px; cursor:pointer; transition:.15s; user-select:none; }
+  .tag:hover{ border-color:var(--acc); color:var(--acc); }
+  .tag.active{ background:var(--acc); border-color:var(--acc); color:#fff; }
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:18px; }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; display:flex; flex-direction:column; gap:12px; text-decoration:none; color:inherit; transition:transform .15s, border-color .15s, box-shadow .15s; }
+  .card:hover{ transform:translateY(-3px); border-color:var(--acc); box-shadow:0 12px 30px rgba(91,140,255,.12); }
+  .thumb{ height:120px; border-radius:9px; display:flex; align-items:center; justify-content:center; overflow:hidden; background:radial-gradient(circle at 30% 30%, #1b2334, #000); }
+  .card h3{ font-size:16px; }
+  .card p{ color:var(--mut); font-size:13px; line-height:1.6; flex:1; }
+  .meta{ display:flex; flex-wrap:wrap; gap:6px; }
+  .meta .m{ font-size:11px; padding:3px 9px; border-radius:999px; border:1px solid var(--line); color:var(--acc); }
+  .empty{ color:var(--mut); text-align:center; padding:60px 0; display:none; }
+  .count{ color:var(--mut); font-size:13px; margin-bottom:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>程序化作图 <span>前哨实验场</span></h1>
+    <p>纯前端、零依赖单 HTML 的生成式绘图实验集合。每个实验打开即用，拖动参数面板实时调参、随时重置种子，作为程序化作图的技术前瞻测试场。</p>
+  </header>
+
+  <div class="tags" id="tags"></div>
+  <div class="count" id="count"></div>
+
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty">该标签下暂无实验。</div>
+</div>
+
+<script>
+// ===== 实验清单：新增实验在这里加一条 + 放一个卡片缩略图 =====
+// thumb: 用 data URL 自绘小图形，或用 trae 图床占位；tag 用于筛选
+const EXPERIMENTS = [
+  {
+    title:"流场粒子 · Flow Field",
+    desc:"粒子沿确定性噪声场流动，拖出柔和丝带状轨迹。调整流场密度、噪声强度、轨迹长度与配色可切换风格。",
+    tags:["粒子","噪声","动势"],
+    href:"experiments/flow-field.html",
+    seed:42,
+    draw(thumb){
+      const c=thumb.getContext("2d"), w=thumb.width, h=thumb.height;
+      c.fillStyle="#1b2334"; c.fillRect(0,0,w,h);
+      c.globalCompositeOperation="lighter"; c.strokeStyle="hsl(235,90%,65%)"; c.lineWidth=1;
+      let x=w*0.5, y=h*0.6;
+      for(let i=0;i<40;i++){ const a=i*0.9+Math.sin(i*0.3)*1.2; x+=Math.cos(a)*3; y+=Math.sin(a)*3; c.beginPath(); c.moveTo(x,y); c.lineTo(x+Math.cos(a)*8,y+Math.sin(a)*8); c.stroke(); }
+    }
+  }
+];
+
+// ===== 缩略图 =====
+function makeThumb(card){
+  const d = card.draw ? card.draw.toString() : "";
+  EXPERIMENTS.forEach(()=>{});
+}
+
+// ===== 渲染 =====
+const tagsSet = new Set();
+EXPERIMENTS.forEach(e => (e.tags||[]).forEach(t => tagsSet.add(t)));
+const allTags = ["全部", ...tagsSet];
+let active = "全部";
+
+function renderTags(){
+  const box = document.getElementById("tags");
+  box.innerHTML = "";
+  allTags.forEach(t=>{
+    const el=document.createElement("span"); el.className="tag"+(t===active?" active":""); el.textContent=t;
+    el.onclick=()=>{ active=t; renderTags(); renderCards(); };
+    box.appendChild(el);
+  });
+}
+function renderCards(){
+  const grid=document.getElementById("grid");
+  const count=document.getElementById("count");
+  const empty=document.getElementById("empty");
+  const list = active==="全部" ? EXPERIMENTS : EXPERIMENTS.filter(e=>(e.tags||[]).includes(active));
+  count.textContent = `共 ${list.length} 个实验`;
+  empty.style.display = list.length ? "none" : "block";
+  grid.innerHTML="";
+  list.forEach(e=>{
+    const a=document.createElement("a"); a.className="card"; a.href=e.href;
+    const th=document.createElement("div"); th.className="thumb";
+    const cv=document.createElement("canvas"); cv.width=300; cv.height=120; th.appendChild(cv);
+    try{ e.draw && e.draw(cv); }catch(err){ c2radial(cv); }
+    a.appendChild(th);
+    const h=document.createElement("h3"); h.textContent=e.title; a.appendChild(h);
+    const p=document.createElement("p"); p.textContent=e.desc; a.appendChild(p);
+    const meta=document.createElement("div"); meta.className="meta";
+    (e.tags||[]).forEach(t=>{ const m=document.createElement("span"); m.className="m"; m.textContent=t; meta.appendChild(m); });
+    a.appendChild(meta);
+    grid.appendChild(a);
+  });
+}
+function c2radial(cv){ const c=cv.getContext("2d"); const g=c.createLinearGradient(0,0,cv.width,cv.height); g.addColorStop(0,"#5b8cff"); g.addColorStop(1,"#7c6bff"); c.fillStyle=g; c.fillRect(0,0,cv.width,cv.height); }
+
+renderTags(); renderCards();
+</script>
+</body>
+</html>
