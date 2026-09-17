@@ -12,7 +12,7 @@
 - 修复 `flow-lines` **暂停状态下拖动参数画面不刷新**（只有数值回显在变）：重绘原先完全依赖 rAF 循环，而暂停时循环提前 `return`。新增统一 `requestRedraw()` 入口，暂停时立即补画一帧（暂停下来慢慢调参正是它最主要的用法）
 - 修复 `flow-lines` 结果弹窗把「标称时长」（总帧数 ÷ 帧率算出来的）当作实际时长展示，改为同时展示「循环周期」与「实际录制时长」
 - 修复 `index.html` **分类导航是死 UI**：`renderCats()` 生成的分类 chip 未绑定点击事件，`activeCat` 恒为「全部」，分类筛选逻辑虽已实现却无法触发；补上事件绑定与 `.cat.active` 高亮样式
-- 修复 `experiments/_template` 声称支持 `color`/`select` 却只实现 `range`：补齐两种控件的生成逻辑与样式（此前 4 个实验中 3 个因此绕过模板手写面板）
+- 修复 `experiments/_template` 声称支持 `color`/`select` 却只实现 `range`：补齐两种控件的生成逻辑与样式（此前 4 个实验中 3 个因此绕过模板手写面板）；并移除声明了却从未被绘图读取的 `速度` 参数，模板 4 个参数现在全部有实际作用
 - 修复 `DEVELOPMENT.md` 末行混入一个**裸 CR(0x0D)**，导致 `rules/*.md` 显示为 `ules/*.md`；该损坏自首个 commit `eb8762c` 起就存在，GitHub 上一直是坏的
 - 修复 `DEVELOPMENT.md` 与实现不符的描述：实验清单并非「读取 experiments/ 清单」，实为 `index.html` 内硬编码的 `EXPERIMENTS` 数组；「如何新增实验」工作流补齐截图与文档基线两个必做步骤
 - 修复 `AGENTS.md` 把「将来要拆分的目标文件」写成当前可 @ 引用的路径（`rules/*.md` 实际不存在，且 git 历史中从未存在过）
