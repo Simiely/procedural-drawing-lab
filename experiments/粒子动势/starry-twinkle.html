@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>星空闪烁 · 星芒</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #0a0c12; }
+  #cv { display: block; position: absolute; inset: 0; }
+
+  .panel {
+    position: fixed; top: 16px; right: 16px; width: 274px;
+    max-height: calc(100vh - 32px); overflow-y: auto;
+    padding: 14px 16px 16px;
+    background: rgba(14,16,22,.85);
+    -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 16px;
+    color: #c9d2e3; font-size: 12px;
+    font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    box-shadow: 0 18px 50px rgba(0,0,0,.6);
+    user-select: none; z-index: 10;
+  }
+  .head { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: .06em; color: #eaf1ff; }
+  .head::before {
+    content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: #ffd24a; margin-right: 8px; vertical-align: 1px;
+    box-shadow: 0 0 10px #ffd24a;
+  }
+  .divider {
+    margin: 14px 0 10px; padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,.08);
+    font-size: 10.5px; color: #6f7a8d; letter-spacing: .12em; font-weight: 600;
+  }
+  .row { margin-bottom: 10px; }
+  .lbl { display: flex; justify-content: space-between; margin-bottom: 5px; color: #7b8699; font-size: 11px; }
+  .lbl .val { color: #ffd24a; font-variant-numeric: tabular-nums; font-weight: 500; }
+
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 3px; border-radius: 3px;
+    background: rgba(255,255,255,.12); outline: none; cursor: pointer; display: block;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%;
+    background: #ffd24a; border: 2px solid #0b0e15;
+    box-shadow: 0 0 8px rgba(255,210,74,.7);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 13px; height: 13px; border-radius: 50%; background: #ffd24a;
+    border: 2px solid #0b0e15; box-shadow: 0 0 8px rgba(255,210,74,.7);
+  }
+  input[type=range]:disabled { opacity: .35; cursor: not-allowed; }
+
+  select {
+    width: 100%; padding: 6px 8px;
+    background: rgba(255,255,255,.06); color: #c9d2e3;
+    border: 1px solid rgba(255,255,255,.12); border-radius: 8px;
+    font-size: 12px; font-family: inherit; outline: none; cursor: pointer;
+  }
+  select option { background: #12161f; color: #c9d2e3; }
+  select:disabled { opacity: .4; cursor: not-allowed; }
+
+  .colors { display: flex; gap: 10px; }
+  .colors .row { flex: 1; margin-bottom: 0; }
+  input[type=color] {
+    width: 100%; height: 32px; padding: 2px;
+    border: 1px solid rgba(255,255,255,.12); border-radius: 8px;
+    background: #1b1e25; cursor: pointer;
+  }
+  input[type=color]:disabled { opacity: .4; cursor: not-allowed; }
+
+  button {
+    width: 100%; margin-top: 10px; padding: 9px;
+    background: rgba(255,255,255,.06); color: #cfd6e2;
+    border: 1px solid rgba(255,255,255,.1); border-radius: 10px;
+    cursor: pointer; font-size: 12px; font-family: inherit;
+    transition: background .18s, border-color .18s, color .18s;
+  }
+  button:hover:not(:disabled) { background: rgba(255,210,74,.16); border-color: rgba(255,210,74,.5); color: #fff6dd; }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+
+  #btnExport {
+    margin-top: 12px; padding: 10px;
+    background: rgba(255,210,74,.14); color: #fff1c9;
+    border-color: rgba(255,210,74,.45);
+    font-weight: 500; letter-spacing: .05em;
+  }
+  #btnExport:hover:not(:disabled) { background: rgba(255,210,74,.26); }
+
+  .info {
+    margin: 10px 0 12px; padding: 9px 11px;
+    background: rgba(255,255,255,.035);
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: 10px;
+    font-size: 11px; color: #8b96a8; line-height: 1.75;
+    font-variant-numeric: tabular-nums;
+  }
+  .info span { color: #ffd24a; font-weight: 500; }
+
+  .progress {
+    height: 4px; margin-top: 10px; border-radius: 2px;
+    background: rgba(255,255,255,.08); overflow: hidden;
+    opacity: 0; transition: opacity .25s;
+  }
+  .progress.show { opacity: 1; }
+  .progress-bar {
+    height: 100%; width: 0%; border-radius: 2px;
+    background: linear-gradient(90deg, #ffd24a, #ff8a3d);
+    box-shadow: 0 0 10px rgba(255,210,74,.8);
+    transition: width .08s linear;
+  }
+  .progress-text {
+    margin-top: 6px; font-size: 10.5px; color: #6b7688;
+    text-align: center; min-height: 13px; font-variant-numeric: tabular-nums;
+  }
+
+  .hint { margin: 10px 0 0; font-size: 10.5px; color: #5a6577; line-height: 1.5; text-align: center; }
+
+  .result-mask {
+    position: fixed; inset: 0; z-index: 999;
+    background: rgba(0,0,0,.72);
+    -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+    display: none; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .result-mask.show { display: flex; }
+  .result-card {
+    width: 100%; max-width: 420px;
+    background: #12161f;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 18px;
+    padding: 22px 22px 20px;
+    color: #c9d2e3;
+    box-shadow: 0 30px 80px rgba(0,0,0,.8);
+  }
+  .result-card h2 { margin: 0 0 6px; font-size: 15px; font-weight: 600; color: #eaf1ff; }
+  .result-card .ok {
+    display: inline-block; width: 18px; height: 18px; line-height: 18px; text-align: center;
+    border-radius: 50%; background: rgba(255,210,74,.2); color: #ffd24a;
+    font-size: 12px; margin-right: 8px; vertical-align: 1px;
+  }
+  .result-card .meta {
+    margin: 12px 0 14px; padding: 10px 12px;
+    background: rgba(255,255,255,.04); border-radius: 10px;
+    font-size: 12px; color: #9aa5b8; line-height: 1.9;
+    font-variant-numeric: tabular-nums;
+  }
+  .result-card .meta b { color: #c9d2e3; font-weight: 500; }
+  .result-card video { width: 100%; border-radius: 10px; background: #000; margin-bottom: 14px; display: block; }
+  .result-actions { display: flex; gap: 10px; }
+  .result-actions button { flex: 1; padding: 10px; font-size: 13px; margin: 0; }
+  .btn-primary {
+    background: rgba(255,210,74,.22); color: #fff1c9;
+    border-color: rgba(255,210,74,.6);
+  }
+  .btn-primary:hover:not(:disabled) { background: rgba(255,210,74,.36); }
+  .result-note { margin-top: 12px; font-size: 11px; color: #6b7688; line-height: 1.6; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 3px; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div class="panel">
+  <div class="head">星空闪烁 · 星芒</div>
+
+  <div class="row">
+    <div class="lbl"><span>星芒数量</span><span class="val" id="v-starCount">100</span></div>
+    <input type="range" id="starCount" min="0" max="800" step="10" value="100">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>星尘数量</span><span class="val" id="v-dustCount">200</span></div>
+    <input type="range" id="dustCount" min="0" max="2000" step="20" value="200">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>闪烁速度</span><span class="val" id="v-twinkleSpeed">1.00</span></div>
+    <input type="range" id="twinkleSpeed" min="0" max="3" step="0.05" value="1">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>闪烁强度</span><span class="val" id="v-twinkleDepth">1.00</span></div>
+    <input type="range" id="twinkleDepth" min="0" max="1" step="0.01" value="1">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>最小大小</span><span class="val" id="v-minSize">6</span></div>
+    <input type="range" id="minSize" min="1" max="80" step="1" value="6">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>最大大小</span><span class="val" id="v-maxSize">36</span></div>
+    <input type="range" id="maxSize" min="2" max="200" step="1" value="36">
+  </div>
+
+  <div class="divider">星芒形状</div>
+
+  <div class="row">
+    <div class="lbl"><span>尖角数量</span><span class="val" id="v-spikes">6</span></div>
+    <input type="range" id="spikes" min="3" max="16" step="1" value="6">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>中心圆半径</span><span class="val" id="v-hubRatio">30</span></div>
+    <input type="range" id="hubRatio" min="0" max="90" step="1" value="30">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>尖角长度</span><span class="val" id="v-spikeLen">70</span></div>
+    <input type="range" id="spikeLen" min="5" max="100" step="1" value="70">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>内凹程度</span><span class="val" id="v-concave">70</span></div>
+    <input type="range" id="concave" min="0" max="95" step="1" value="70">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>尖角基部半角</span><span class="val" id="v-baseAngle">12</span></div>
+    <input type="range" id="baseAngle" min="2" max="30" step="1" value="12">
+  </div>
+
+  <div class="divider">颜色</div>
+
+  <div class="colors">
+    <div class="row">
+      <div class="lbl"><span>星星颜色</span></div>
+      <input type="color" id="color" value="#ffd24a">
+    </div>
+    <div class="row">
+      <div class="lbl"><span>背景颜色</span></div>
+      <input type="color" id="bgColor" value="#0a0c12">
+    </div>
+  </div>
+
+  <div class="divider">视频导出</div>
+
+  <div class="row">
+    <div class="lbl"><span>循环周期</span><span class="val" id="v-cycle">6.0s</span></div>
+    <input type="range" id="cycle" min="2" max="20" step="0.5" value="6">
+  </div>
+
+  <div class="row">
+    <div class="lbl"><span>分辨率</span></div>
+    <select id="expRes"></select>
+  </div>
+
+  <div class="row">
+    <div class="lbl"><span>帧率</span></div>
+    <select id="expFps">
+      <option value="30">30 fps</option>
+      <option value="60" selected>60 fps</option>
+    </select>
+  </div>
+
+  <div class="row">
+    <div class="lbl"><span>循环次数</span><span class="val" id="cyclesVal">1</span></div>
+    <input type="range" id="expCycles" min="1" max="8" step="1" value="1">
+  </div>
+
+  <div class="info">
+    <div>视频时长：<span id="infoDuration">6.00</span> 秒</div>
+    <div>总帧数：<span id="infoFrames">360</span></div>
+  </div>
+
+  <button id="btnExport">导出视频</button>
+  <div class="progress" id="progressWrap"><div class="progress-bar" id="progressBar"></div></div>
+  <div class="progress-text" id="progressText"></div>
+
+  <button id="reset">恢复默认</button>
+  <p class="hint">星星固定不动，只做闪烁 · 空格键暂停</p>
+</div>
+
+<div class="result-mask" id="resultMask">
+  <div class="result-card">
+    <h2><span class="ok">✓</span>视频导出完成</h2>
+    <div class="meta" id="resultMeta"></div>
+    <video id="resultVideo" controls playsinline></video>
+    <div class="result-actions">
+      <button class="btn-primary" id="btnDownload">下载视频</button>
+      <button id="btnCloseResult">关闭</button>
+    </div>
+    <div class="result-note" id="resultNote"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ============================================================
+   * 0. 基础
+   * ========================================================== */
+  var canvas = document.getElementById('cv');
+  var ctx = canvas.getContext('2d');
+
+  var W = 0, H = 0, DPR = 1;
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  /* ============================================================
+   * 1. 参数
+   * ========================================================== */
+  var DEFAULTS = {
+    starCount: 100, dustCount: 200,
+    twinkleSpeed: 1, twinkleDepth: 1,
+    minSize: 6, maxSize: 36,
+    spikes: 6, hubRatio: 30, spikeLen: 70, concave: 70, baseAngle: 12,
+    color: '#ffd24a', bgColor: '#0a0c12',
+    cycle: 6
+  };
+
+  var params = {};
+  for (var key in DEFAULTS) {
+    if (Object.prototype.hasOwnProperty.call(DEFAULTS, key)) {
+      params[key] = DEFAULTS[key];
+    }
+  }
+
+  var colorRGB = [255, 210, 74];
+  var bgRGB = [10, 12, 18];
+
+  function hexToRgb(hex) {
+    var m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+    if (!m) return [255, 255, 255];
+    return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+  }
+
+  /* ============================================================
+   * 2. DOM 引用 —— 提前获取，避免顺序问题
+   * ========================================================== */
+  var selRes    = document.getElementById('expRes');
+  var selFps    = document.getElementById('expFps');
+  var rngCycles = document.getElementById('expCycles');
+  var cyclesVal = document.getElementById('cyclesVal');
+  var elColor   = document.getElementById('color');
+  var elBg      = document.getElementById('bgColor');
+
+  /* ============================================================
+   * 3. 数据 —— 固定位置 + 周期化闪烁
+   * ========================================================== */
+  var stars = [];
+  var dust = [];
+  var timeNorm = 0;
+  var lastFrameTime = 0;
+  var paused = false;
+  var exporting = false;
+
+  function maxTwinkleFreq() {
+    return Math.max(1, Math.round(params.twinkleSpeed * 3) + 1);
+  }
+
+  function makeStar() {
+    var mf = maxTwinkleFreq();
+    return {
+      x: Math.random(),
+      y: Math.random(),
+      sizeFactor: Math.random() * Math.random(),
+      rot: Math.random() * Math.PI * 2,
+      twPhase: Math.random() * Math.PI * 2,
+      twFreq: 1 + Math.floor(Math.random() * mf),
+      alpha: 0.5 + Math.random() * 0.5
+    };
+  }
+
+  function makeDust() {
+    var mf = maxTwinkleFreq();
+    return {
+      x: Math.random(),
+      y: Math.random(),
+      r: 0.4 + Math.random() * 1.0,
+      twPhase: Math.random() * Math.PI * 2,
+      twFreq: 1 + Math.floor(Math.random() * mf),
+      alpha: 0.18 + Math.random() * 0.5
+    };
+  }
+
+  function syncStars() {
+    var n = Math.max(0, params.starCount | 0);
+    while (stars.length < n) stars.push(makeStar());
+    if (stars.length > n) stars.length = n;
+  }
+
+  function syncDust() {
+    var n = Math.max(0, params.dustCount | 0);
+    while (dust.length < n) dust.push(makeDust());
+    if (dust.length > n) dust.length = n;
+  }
+
+  function regenAll() {
+    stars.length = 0;
+    dust.length = 0;
+    syncStars();
+    syncDust();
+  }
+
+  function refreshFreq() {
+    var mf = maxTwinkleFreq();
+    var i;
+    for (i = 0; i < stars.length; i++) stars[i].twFreq = 1 + Math.floor(Math.random() * mf);
+    for (i = 0; i < dust.length; i++)  dust[i].twFreq = 1 + Math.floor(Math.random() * mf);
+  }
+
+  /* ============================================================
+   * 4. 星芒烘焙贴图
+   * ========================================================== */
+  var SPRITE_SIZE = 512;
+  var SPRITE_MAX_R = SPRITE_SIZE / 2 - 16;
+  var starSprite = null;
+  var spriteDirty = true;
+
+  function addSpikePath(g, cx, cy, r, R, alphaRad, concave, rotation) {
+    if (R < r + 0.5) R = r + 0.5;
+
+    var sinA = Math.sin(alphaRad);
+    var cosA = Math.cos(alphaRad);
+
+    var lx = -r * sinA, ly = -r * cosA;
+    var rx =  r * sinA, ry = -r * cosA;
+    var tx = 0,         ty = -R;
+
+    var c1x = ((lx + tx) * 0.5) * (1 - concave);
+    var c1y = (ly + ty) * 0.5;
+    var c2x = ((rx + tx) * 0.5) * (1 - concave);
+    var c2y = (ry + ty) * 0.5;
+
+    var cosR = Math.cos(rotation);
+    var sinR = Math.sin(rotation);
+
+    var wLx  = cx + lx  * cosR - ly  * sinR;
+    var wLy  = cy + lx  * sinR + ly  * cosR;
+    var wRx  = cx + rx  * cosR - ry  * sinR;
+    var wRy  = cy + rx  * sinR + ry  * cosR;
+    var wTx  = cx + tx  * cosR - ty  * sinR;
+    var wTy  = cy + tx  * sinR + ty  * cosR;
+    var wC1x = cx + c1x * cosR - c1y * sinR;
+    var wC1y = cy + c1x * sinR + c1y * cosR;
+    var wC2x = cx + c2x * cosR - c2y * sinR;
+    var wC2y = cy + c2x * sinR + c2y * cosR;
+
+    g.moveTo(wLx, wLy);
+    g.quadraticCurveTo(wC1x, wC1y, wTx, wTy);
+    g.quadraticCurveTo(wC2x, wC2y, wRx, wRy);
+    g.lineTo(cx, cy);
+    g.closePath();
+  }
+
+  function buildSprite() {
+    var S = SPRITE_SIZE;
+    var c = document.createElement('canvas');
+    c.width = S;
+    c.height = S;
+    var g = c.getContext('2d');
+
+    var cx = S / 2, cy = S / 2;
+    var maxR = SPRITE_MAX_R;
+
+    var hubRatio = params.hubRatio;
+    var spikeRatio = params.spikeLen;
+    var total = hubRatio + spikeRatio;
+    if (total <= 0) total = 1;
+
+    var r = maxR * (hubRatio / total);
+    var R = maxR;
+    if (R < r + 0.5) R = r + 0.5;
+
+    var count = Math.max(3, Math.round(params.spikes));
+    var maxDeg = Math.min(30, 180 / count - 2);
+    var deg = Math.min(params.baseAngle, Math.max(2, maxDeg));
+    var alphaRad = deg * Math.PI / 180;
+    var concave = Math.max(0, Math.min(0.95, params.concave / 100));
+
+    g.fillStyle = 'rgb(' + colorRGB[0] + ',' + colorRGB[1] + ',' + colorRGB[2] + ')';
+
+    var step = Math.PI * 2 / count;
+    g.beginPath();
+    for (var i = 0; i < count; i++) {
+      addSpikePath(g, cx, cy, r, R, alphaRad, concave, i * step);
+    }
+    g.fill();
+
+    if (r > 0.5) {
+      g.beginPath();
+      g.arc(cx, cy, r, 0, Math.PI * 2);
+      g.fill();
+    }
+
+    starSprite = c;
+    spriteDirty = false;
+  }
+
+  /* ============================================================
+   * 5. 绘制
+   * ========================================================== */
+  function drawDust(g, d, tNorm, w, h) {
+    var tw = 0.5 + 0.5 * Math.sin(tNorm * Math.PI * 2 * d.twFreq + d.twPhase);
+    var depth = params.twinkleDepth;
+    var mod = 1 - depth * (1 - tw);
+    var alpha = d.alpha * (0.15 + 0.85 * mod);
+    if (alpha < 0.01) return;
+
+    g.globalAlpha = alpha;
+    g.beginPath();
+    g.arc(d.x * w, d.y * h, d.r, 0, Math.PI * 2);
+    g.fill();
+  }
+
+  function drawStar(g, s, tNorm, w, h) {
+    if (!starSprite) return;
+
+    var tw = 0.5 + 0.5 * Math.sin(tNorm * Math.PI * 2 * s.twFreq + s.twPhase);
+    var depth = params.twinkleDepth;
+    var mod = 1 - depth * (1 - tw);
+
+    var alpha = s.alpha * (0.15 + 0.85 * mod);
+    if (alpha < 0.015) return;
+
+    var scale = h / 1080;
+    var baseR = params.minSize + s.sizeFactor * (params.maxSize - params.minSize);
+    var R = baseR * scale * (0.80 + 0.40 * mod);
+    if (R < 0.4) return;
+
+    var x = s.x * w;
+    var y = s.y * h;
+
+    var drawnW = SPRITE_SIZE * (R / SPRITE_MAX_R);
+
+    g.globalAlpha = alpha;
+    g.drawImage(starSprite, x - drawnW / 2, y - drawnW / 2, drawnW, drawnW);
+  }
+
+  function render(g, w, h, tNorm) {
+    g.globalCompositeOperation = 'source-over';
+    g.globalAlpha = 1;
+    g.fillStyle = 'rgb(' + bgRGB[0] + ',' + bgRGB[1] + ',' + bgRGB[2] + ')';
+    g.fillRect(0, 0, w, h);
+
+    g.globalCompositeOperation = 'lighter';
+    g.fillStyle = 'rgb(' + colorRGB[0] + ',' + colorRGB[1] + ',' + colorRGB[2] + ')';
+
+    var i;
+    for (i = 0; i < dust.length; i++)  drawDust(g, dust[i], tNorm, w, h);
+    for (i = 0; i < stars.length; i++) drawStar(g, stars[i], tNorm, w, h);
+
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
+  }
+
+  /* ============================================================
+   * 6. 导出设置 —— 必须在 UI 绑定之前定义
+   * ========================================================== */
+  var RES_PRESETS = [
+    { name: '1920 × 1080 (横屏)', w: 1920, h: 1080 },
+    { name: '1280 × 720 (横屏)',  w: 1280, h: 720  },
+    { name: '2560 × 1440 (2K)',   w: 2560, h: 1440 },
+    { name: '3840 × 2160 (4K)',   w: 3840, h: 2160 },
+    { name: '1080 × 1080 (方形)', w: 1080, h: 1080 },
+    { name: '1080 × 1920 (竖屏)', w: 1080, h: 1920 }
+  ];
+
+  /* 填充分辨率下拉框 */
+  for (var ri = 0; ri < RES_PRESETS.length; ri++) {
+    var opt = document.createElement('option');
+    opt.value = ri;
+    opt.textContent = RES_PRESETS[ri].name;
+    selRes.appendChild(opt);
+  }
+
+  function currentRes()    { return RES_PRESETS[parseInt(selRes.value, 10) || 0]; }
+  function currentFps()    { return parseInt(selFps.value, 10) || 60; }
+  function currentCycles() { return parseInt(rngCycles.value, 10) || 1; }
+
+  function updateExportInfo() {
+    var fps = currentFps();
+    var cyc = currentCycles();
+    var fpc = Math.max(1, Math.round(params.cycle * fps));
+    var total = fpc * cyc;
+    var elDur = document.getElementById('infoDuration');
+    var elFrm = document.getElementById('infoFrames');
+    if (elDur) elDur.textContent = (total / fps).toFixed(2);
+    if (elFrm) elFrm.textContent = total;
+    if (cyclesVal) cyclesVal.textContent = cyc;
+  }
+
+  selRes.addEventListener('change', updateExportInfo);
+  selFps.addEventListener('change', updateExportInfo);
+  rngCycles.addEventListener('input', updateExportInfo);
+
+  /* ============================================================
+   * 7. UI 绑定
+   * ========================================================== */
+  function setVal(id, v) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = v;
+  }
+
+  function bindRange(id, key, labelId, formatter, onChange) {
+    var input = document.getElementById(id);
+    if (!input) return;
+    function apply() {
+      var v = parseFloat(input.value);
+      if (isNaN(v)) return;
+      params[key] = v;
+      if (labelId) setVal(labelId, formatter ? formatter(v) : v);
+      if (onChange) onChange();
+      requestRedraw();
+    }
+    input.addEventListener('input', apply);
+    apply();
+  }
+
+  function markSpriteDirty() { spriteDirty = true; }
+
+  bindRange('starCount', 'starCount', 'v-starCount', null, syncStars);
+  bindRange('dustCount', 'dustCount', 'v-dustCount', null, syncDust);
+  bindRange('twinkleSpeed', 'twinkleSpeed', 'v-twinkleSpeed',
+    function (v) { return Number(v).toFixed(2); }, refreshFreq);
+  bindRange('twinkleDepth', 'twinkleDepth', 'v-twinkleDepth',
+    function (v) { return Number(v).toFixed(2); });
+
+  bindRange('minSize', 'minSize', 'v-minSize', null, function () {
+    if (params.minSize > params.maxSize) {
+      params.maxSize = params.minSize;
+      var el = document.getElementById('maxSize');
+      if (el) el.value = params.maxSize;
+      setVal('v-maxSize', params.maxSize);
+    }
+  });
+  bindRange('maxSize', 'maxSize', 'v-maxSize', null, function () {
+    if (params.maxSize < params.minSize) {
+      params.minSize = params.maxSize;
+      var el = document.getElementById('minSize');
+      if (el) el.value = params.minSize;
+      setVal('v-minSize', params.minSize);
+    }
+  });
+
+  bindRange('spikes', 'spikes', 'v-spikes', null, markSpriteDirty);
+  bindRange('hubRatio', 'hubRatio', 'v-hubRatio', null, markSpriteDirty);
+  bindRange('spikeLen', 'spikeLen', 'v-spikeLen', null, markSpriteDirty);
+  bindRange('concave', 'concave', 'v-concave', null, markSpriteDirty);
+  bindRange('baseAngle', 'baseAngle', 'v-baseAngle', null, markSpriteDirty);
+
+  bindRange('cycle', 'cycle', 'v-cycle',
+    function (v) { return Number(v).toFixed(1) + 's'; },
+    function () { updateExportInfo(); });
+
+  if (elColor) {
+    elColor.addEventListener('input', function () {
+      params.color = elColor.value;
+      colorRGB = hexToRgb(params.color);
+      markSpriteDirty();
+      requestRedraw();
+    });
+  }
+  if (elBg) {
+    elBg.addEventListener('input', function () {
+      params.bgColor = elBg.value;
+      bgRGB = hexToRgb(params.bgColor);
+      requestRedraw();
+    });
+  }
+
+  /* ============================================================
+   * 8. 主循环
+   * ========================================================== */
+  function loop(now) {
+    requestAnimationFrame(loop);
+
+    if (spriteDirty) buildSprite();
+
+    if (!lastFrameTime) { lastFrameTime = now; return; }
+
+    var dt = (now - lastFrameTime) / 1000;
+    lastFrameTime = now;
+    if (dt > 0.1) dt = 0.1;
+    if (dt <= 0) return;
+
+    if (!paused && !exporting && W > 0 && H > 0) {
+      timeNorm += dt / params.cycle;
+      timeNorm -= Math.floor(timeNorm);
+      render(ctx, W, H, timeNorm);
+    }
+  }
+
+  /* 统一重绘入口：播放中交给主循环；暂停时立即补画一帧，
+     否则拖参数只改状态（形状类还会重建贴图却不画出来）、画面纹丝不动；
+     导出中不动，避免干扰离屏画布 */
+  function requestRedraw() {
+    if (exporting) return;
+    if (paused && W > 0 && H > 0) {
+      if (spriteDirty) buildSprite();
+      render(ctx, W, H, timeNorm);
+    }
+  }
+
+  /* ============================================================
+   * 9. 尺寸
+   * ========================================================== */
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth || document.documentElement.clientWidth || 800;
+    H = window.innerHeight || document.documentElement.clientHeight || 600;
+
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    if (W > 0 && H > 0 && starSprite) render(ctx, W, H, timeNorm);
+    requestRedraw();   // 改尺寸会清空画布，暂停态下要立刻补画
+  }
+
+  /* ============================================================
+   * 10. 录制工具
+   * ========================================================== */
+  function pickMime() {
+    var types = [
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm',
+      'video/mp4'
+    ];
+    for (var i = 0; i < types.length; i++) {
+      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(types[i])) {
+        return types[i];
+      }
+    }
+    return '';
+  }
+  function estimateBitrate(w, h, fps) {
+    var bits = w * h * fps * 0.12;
+    return Math.round(Math.min(Math.max(bits, 2e6), 6e7));
+  }
+  function fmtBytes(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+    return (b / (1024 * 1024)).toFixed(2) + ' MB';
+  }
+
+  /* ============================================================
+   * 11. 结果弹窗
+   * ========================================================== */
+  var resultMask  = document.getElementById('resultMask');
+  var resultMeta  = document.getElementById('resultMeta');
+  var resultVideo = document.getElementById('resultVideo');
+  var resultNote  = document.getElementById('resultNote');
+  var btnDownload = document.getElementById('btnDownload');
+  var btnClose    = document.getElementById('btnCloseResult');
+
+  var pendingBlob = null;
+  var pendingName = '';
+  var pendingUrl  = '';
+
+  function triggerDownload() {
+    if (!pendingBlob) return;
+    var a = document.createElement('a');
+    a.href = pendingUrl;
+    a.download = pendingName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  if (btnDownload) {
+    btnDownload.addEventListener('click', function () {
+      triggerDownload();
+      if (resultNote) resultNote.textContent = '已触发下载。若浏览器未自动保存，请检查是否被拦截，或右键预览视频选择“视频另存为”。';
+    });
+  }
+
+  if (btnClose) {
+    btnClose.addEventListener('click', function () {
+      resultMask.classList.remove('show');
+      if (pendingUrl) { URL.revokeObjectURL(pendingUrl); pendingUrl = ''; }
+      pendingBlob = null;
+      if (resultVideo) resultVideo.removeAttribute('src');
+    });
+  }
+
+  function showResult(blob, name, info) {
+    if (pendingUrl) URL.revokeObjectURL(pendingUrl);
+    pendingBlob = blob;
+    pendingName = name;
+    pendingUrl  = URL.createObjectURL(blob);
+
+    resultMeta.innerHTML =
+      '文件名：<b>' + name + '</b><br>' +
+      '文件大小：<b>' + fmtBytes(blob.size) + '</b><br>' +
+      '分辨率：<b>' + info.w + ' × ' + info.h + '</b>　帧率：<b>' + info.fps + ' fps</b><br>' +
+      '总帧数：<b>' + info.frames + '</b>　循环周期：<b>' + info.duration.toFixed(2) + ' 秒</b><br>' +
+      '实际录制时长：<b>' + (info.actual != null ? info.actual.toFixed(2) : info.duration.toFixed(2)) + ' 秒</b>';
+
+    resultVideo.src = pendingUrl;
+    resultVideo.load();
+    resultNote.textContent = '点击“下载视频”保存文件，或右键预览视频选择“视频另存为”。';
+    resultMask.classList.add('show');
+
+    try {
+      triggerDownload();
+      resultNote.textContent = '已尝试自动下载。若没有弹出保存提示，请点击下方“下载视频”按钮，或右键预览视频选择“视频另存为”。';
+    } catch (e) {}
+  }
+
+  /* ============================================================
+   * 12. 导出流程
+   * ========================================================== */
+  var btnExport    = document.getElementById('btnExport');
+  var progressWrap = document.getElementById('progressWrap');
+  var progressBar  = document.getElementById('progressBar');
+  var progressText = document.getElementById('progressText');
+
+  function setDisabled(dis) {
+    var ids = ['starCount','dustCount','twinkleSpeed','twinkleDepth','minSize','maxSize',
+               'spikes','hubRatio','spikeLen','concave','baseAngle',
+               'cycle','color','bgColor','expRes','expFps','expCycles','reset'];
+    for (var i = 0; i < ids.length; i++) {
+      var el = document.getElementById(ids[i]);
+      if (el) el.disabled = dis;
+    }
+  }
+
+  async function doExport() {
+    if (exporting) return;
+
+    if (typeof MediaRecorder === 'undefined' || !HTMLCanvasElement.prototype.captureStream) {
+      alert('当前浏览器不支持视频导出（缺少 MediaRecorder 或 captureStream）。\n请使用最新版 Chrome、Edge 或 Safari。');
+      return;
+    }
+
+    var mime = pickMime();
+    if (!mime) { alert('当前浏览器不支持任何可用的视频编码格式。'); return; }
+
+    exporting = true;
+    setDisabled(true);
+    btnExport.disabled = true;
+    btnExport.textContent = '准备中…';
+    progressWrap.classList.add('show');
+    progressBar.style.width = '0%';
+    progressText.textContent = '正在准备…';
+
+    var res    = currentRes();
+    var fps    = currentFps();
+    var cycles = currentCycles();
+    var fpc    = Math.max(1, Math.round(params.cycle * fps));
+    var totalFrames   = fpc * cycles;
+    var totalDuration = totalFrames / fps;
+
+    var oc = document.createElement('canvas');
+    oc.width  = res.w;
+    oc.height = res.h;
+    oc.style.position = 'fixed';
+    oc.style.left = '-99999px';
+    oc.style.top = '0';
+    oc.style.width = res.w + 'px';
+    oc.style.height = res.h + 'px';
+    document.body.appendChild(oc);
+
+    var og = oc.getContext('2d');
+
+    render(og, res.w, res.h, 0);
+
+    var stream, recorder, chunks = [];
+    try {
+      stream = oc.captureStream(fps);
+      recorder = new MediaRecorder(stream, {
+        mimeType: mime,
+        videoBitsPerSecond: estimateBitrate(res.w, res.h, fps)
+      });
+    } catch (err) {
+      alert('创建录制器失败：' + err.message);
+      finish();
+      return;
+    }
+
+    recorder.ondataavailable = function (e) {
+      if (e.data && e.data.size > 0) chunks.push(e.data);
+    };
+
+    var stopped = new Promise(function (r) { recorder.onstop = r; });
+    var recStartWall = performance.now();
+    recorder.start();
+    btnExport.textContent = '录制中…';
+
+    var interval = 1000 / fps;
+    var startWall = performance.now();
+
+    try {
+      for (var i = 1; i <= totalFrames; i++) {
+        var target = startWall + i * interval;
+        var wait = target - performance.now();
+        if (wait > 1) await sleep(wait);
+
+        var tNorm = ((i - 1) % fpc) / fpc;
+        render(og, res.w, res.h, tNorm);
+
+        var prog = i / totalFrames;
+        progressBar.style.width = (prog * 100).toFixed(1) + '%';
+        progressText.textContent = '渲染 ' + Math.round(prog * 100) + '%  (' + i + ' / ' + totalFrames + ')';
+      }
+
+      // 末帧强制推流，只等一个帧间隔就停录。
+      // 注意：这里若在 stop() 之前长等（旧写法 sleep 300ms+），录制器仍在跑，
+      // 会把最后一帧的静止画面录进视频尾部，循环回接时出现明显停顿。
+      render(og, res.w, res.h, ((totalFrames - 1) % fpc) / fpc);
+      var vTrack = stream.getVideoTracks()[0];
+      if (vTrack && vTrack.requestFrame) vTrack.requestFrame();
+      await sleep(Math.min(interval, 40));
+
+      recorder.stop();
+      await stopped;
+      var actualDuration = (performance.now() - recStartWall) / 1000;
+
+      progressText.textContent = '正在封装文件…';
+      await sleep(80);
+
+      var blob = new Blob(chunks, { type: mime });
+      if (!blob.size) {
+        progressText.textContent = '导出失败：录制数据为空。请尝试降低分辨率或帧率后重试。';
+        finish();
+        return;
+      }
+
+      var ext = mime.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
+      var name = 'starry-' + res.w + 'x' + res.h + '-' + fps + 'fps-' +
+                 totalDuration.toFixed(1) + 's.' + ext;
+
+      progressText.textContent = '完成';
+      progressBar.style.width = '100%';
+
+      showResult(blob, name, {
+        w: res.w, h: res.h, fps: fps,
+        duration: totalDuration, frames: totalFrames,
+        actual: actualDuration
+      });
+
+    } catch (err) {
+      try { recorder.stop(); } catch (e2) {}
+      progressText.textContent = '导出失败：' + err.message;
+    }
+
+    finish();
+
+    function finish() {
+      exporting = false;
+      setDisabled(false);
+      btnExport.disabled = false;
+      btnExport.textContent = '导出视频';
+      setTimeout(function () {
+        progressWrap.classList.remove('show');
+        progressBar.style.width = '0%';
+        progressText.textContent = '';
+      }, 2600);
+      if (oc.parentNode) oc.parentNode.removeChild(oc);
+    }
+  }
+
+  if (btnExport) btnExport.addEventListener('click', doExport);
+
+  /* ============================================================
+   * 13. 重置 / 暂停
+   * ========================================================== */
+  document.getElementById('reset').addEventListener('click', function () {
+    if (exporting) return;
+    for (var k in DEFAULTS) {
+      if (!Object.prototype.hasOwnProperty.call(DEFAULTS, k)) continue;
+      params[k] = DEFAULTS[k];
+      var el = document.getElementById(k);
+      if (el) el.value = DEFAULTS[k];
+    }
+    colorRGB = hexToRgb(params.color);
+    bgRGB = hexToRgb(params.bgColor);
+
+    setVal('v-starCount', params.starCount);
+    setVal('v-dustCount', params.dustCount);
+    setVal('v-twinkleSpeed', Number(params.twinkleSpeed).toFixed(2));
+    setVal('v-twinkleDepth', Number(params.twinkleDepth).toFixed(2));
+    setVal('v-minSize', params.minSize);
+    setVal('v-maxSize', params.maxSize);
+    setVal('v-spikes', params.spikes);
+    setVal('v-hubRatio', params.hubRatio);
+    setVal('v-spikeLen', params.spikeLen);
+    setVal('v-concave', params.concave);
+    setVal('v-baseAngle', params.baseAngle);
+    setVal('v-cycle', Number(params.cycle).toFixed(1) + 's');
+
+    regenAll();
+    markSpriteDirty();
+    updateExportInfo();
+    requestRedraw();
+  });
+
+  window.addEventListener('keydown', function (e) {
+    if (e.code === 'Space' && !exporting) {
+      e.preventDefault();
+      paused = !paused;
+    }
+  });
+
+  /* ============================================================
+   * 14. 启动
+   * ========================================================== */
+  colorRGB = hexToRgb(params.color);
+  bgRGB = hexToRgb(params.bgColor);
+
+  resize();
+  regenAll();
+  buildSprite();       /* 立即构建贴图，避免首帧空白 */
+  updateExportInfo();
+
+  var rt = 0;
+  window.addEventListener('resize', function () {
+    clearTimeout(rt);
+    rt = setTimeout(resize, 120);
+  });
+
+  requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>
