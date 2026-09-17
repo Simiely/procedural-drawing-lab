@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>粒子流动线条 · 可导出视频</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    overflow: hidden; background: #000;
+  }
+  #cv { display: block; position: absolute; inset: 0; }
+
+  .panel {
+    position: fixed; top: 16px; right: 16px; width: 272px;
+    max-height: calc(100vh - 32px); overflow-y: auto;
+    padding: 14px 16px 16px;
+    background: rgba(12,15,22,.8);
+    -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 16px;
+    color: #c9d2e3; font-size: 12px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.65);
+    user-select: none;
+    z-index: 10;
+  }
+  .head { margin-bottom: 12px; }
+  .head h1 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .06em; color: #eaf1ff; }
+  .head h1::before {
+    content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: #4dd0e1; margin-right: 8px; vertical-align: 1px;
+    box-shadow: 0 0 10px #4dd0e1;
+  }
+
+  .section-title {
+    margin: 16px 0 10px; padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,.08);
+    font-size: 11px; color: #8b96a8; letter-spacing: .1em; font-weight: 600;
+  }
+  .section-title:first-of-type { border-top: none; margin-top: 4px; padding-top: 0; }
+
+  .row { margin-bottom: 10px; }
+  .lbl { display: flex; justify-content: space-between; margin-bottom: 5px; color: #7b8699; font-size: 11px; }
+  .lbl .val { color: #4dd0e1; font-variant-numeric: tabular-nums; font-weight: 500; }
+
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 3px; border-radius: 3px;
+    background: rgba(255,255,255,.12); outline: none; cursor: pointer; display: block;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%;
+    background: #4dd0e1; border: 2px solid #0b0e15;
+    box-shadow: 0 0 8px rgba(77,208,225,.7); transition: transform .15s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.25); }
+  input[type=range]::-moz-range-thumb {
+    width: 13px; height: 13px; border-radius: 50%; background: #4dd0e1;
+    border: 2px solid #0b0e15; box-shadow: 0 0 8px rgba(77,208,225,.7);
+  }
+  input[type=range]:disabled { opacity: .35; cursor: not-allowed; }
+
+  select {
+    width: 100%; padding: 6px 8px;
+    background: rgba(255,255,255,.06); color: #c9d2e3;
+    border: 1px solid rgba(255,255,255,.12); border-radius: 8px;
+    font-size: 12px; font-family: inherit; outline: none; cursor: pointer;
+  }
+  select:focus { border-color: rgba(77,208,225,.6); }
+  select option { background: #12161f; color: #c9d2e3; }
+  select:disabled { opacity: .4; cursor: not-allowed; }
+
+  .presets { display: flex; gap: 6px; margin: 4px 0 10px; flex-wrap: wrap; }
+  .presets button { flex: 1 1 auto; min-width: 58px; padding: 6px 0; font-size: 11px; }
+
+  button {
+    background: rgba(255,255,255,.06); color: #c9d2e3;
+    border: 1px solid rgba(255,255,255,.1); border-radius: 8px;
+    padding: 7px 10px; font-size: 12px; cursor: pointer; font-family: inherit;
+    transition: background .18s, border-color .18s, color .18s;
+  }
+  button:hover:not(:disabled) { background: rgba(77,208,225,.16); border-color: rgba(77,208,225,.5); color: #eaf9ff; }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+
+  .actions { display: flex; gap: 8px; margin-top: 10px; }
+  .actions button { flex: 1; }
+
+  .info {
+    margin: 10px 0 12px; padding: 9px 11px;
+    background: rgba(255,255,255,.035);
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: 10px;
+    font-size: 11px; color: #8b96a8; line-height: 1.75;
+    font-variant-numeric: tabular-nums;
+  }
+  .info span { color: #4dd0e1; font-weight: 500; }
+
+  #btnExport {
+    width: 100%; padding: 10px 12px; font-size: 12.5px;
+    background: rgba(77,208,225,.14); color: #c8f4fb;
+    border-color: rgba(77,208,225,.45);
+    font-weight: 500; letter-spacing: .05em;
+  }
+  #btnExport:hover:not(:disabled) { background: rgba(77,208,225,.26); }
+
+  .progress {
+    height: 4px; margin-top: 10px; border-radius: 2px;
+    background: rgba(255,255,255,.08); overflow: hidden;
+    opacity: 0; transition: opacity .25s;
+  }
+  .progress.show { opacity: 1; }
+  .progress-bar {
+    height: 100%; width: 0%; border-radius: 2px;
+    background: linear-gradient(90deg, #4dd0e1, #7c6cf0);
+    box-shadow: 0 0 10px rgba(77,208,225,.8);
+    transition: width .08s linear;
+  }
+  .progress-text {
+    margin-top: 6px; font-size: 10.5px; color: #6b7688;
+    text-align: center; min-height: 13px; font-variant-numeric: tabular-nums;
+  }
+
+  .hint { margin: 10px 0 0; font-size: 10.5px; color: #5d687a; line-height: 1.5; text-align: center; }
+
+  /* ============ 结果弹窗 ============ */
+  .result-mask {
+    position: fixed; inset: 0; z-index: 999;
+    background: rgba(0,0,0,.7);
+    -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+    display: none; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .result-mask.show { display: flex; }
+  .result-card {
+    width: 100%; max-width: 420px;
+    background: #12161f;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 18px;
+    padding: 22px 22px 20px;
+    color: #c9d2e3;
+    box-shadow: 0 30px 80px rgba(0,0,0,.8);
+  }
+  .result-card h2 {
+    margin: 0 0 6px; font-size: 15px; font-weight: 600; color: #eaf1ff;
+  }
+  .result-card .ok {
+    display: inline-block; width: 18px; height: 18px; line-height: 18px; text-align: center;
+    border-radius: 50%; background: rgba(77,208,225,.2); color: #4dd0e1;
+    font-size: 12px; margin-right: 8px; vertical-align: 1px;
+  }
+  .result-card .meta {
+    margin: 12px 0 14px; padding: 10px 12px;
+    background: rgba(255,255,255,.04); border-radius: 10px;
+    font-size: 12px; color: #9aa5b8; line-height: 1.9;
+    font-variant-numeric: tabular-nums;
+  }
+  .result-card .meta b { color: #c9d2e3; font-weight: 500; }
+  .result-card video {
+    width: 100%; border-radius: 10px; background: #000;
+    margin-bottom: 14px; display: block;
+  }
+  .result-actions { display: flex; gap: 10px; }
+  .result-actions button { flex: 1; padding: 10px; font-size: 13px; }
+  .btn-primary {
+    background: rgba(77,208,225,.22); color: #d5f7fd;
+    border-color: rgba(77,208,225,.6);
+  }
+  .btn-primary:hover:not(:disabled) { background: rgba(77,208,225,.36); }
+  .result-note {
+    margin-top: 12px; font-size: 11px; color: #6b7688; line-height: 1.6;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  @media (max-width: 640px) {
+    .panel { width: 208px; top: 10px; right: 10px; padding: 10px 12px 12px; font-size: 11px; }
+    .head h1 { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div class="panel">
+  <div class="head"><h1>粒子流动线条</h1></div>
+
+  <div class="section-title">视觉参数</div>
+  <div id="visual-controls"></div>
+  <div class="presets" id="presets"></div>
+
+  <div class="section-title">视频导出</div>
+
+  <div class="row">
+    <div class="lbl"><span>分辨率</span></div>
+    <select id="expRes"></select>
+  </div>
+
+  <div class="row">
+    <div class="lbl"><span>帧率</span></div>
+    <select id="expFps">
+      <option value="30">30 fps</option>
+      <option value="60" selected>60 fps</option>
+    </select>
+  </div>
+
+  <div class="row">
+    <div class="lbl"><span>循环次数</span><span class="val" id="cyclesVal">1</span></div>
+    <input type="range" id="expCycles" min="1" max="8" step="1" value="1">
+  </div>
+
+  <div class="info">
+    <div>循环周期：<span id="infoCycle">3.00</span> 秒</div>
+    <div>视频时长：<span id="infoDuration">3.00</span> 秒</div>
+    <div>总帧数：<span id="infoFrames">180</span></div>
+  </div>
+
+  <button id="btnExport">导出视频</button>
+  <div class="progress" id="progressWrap"><div class="progress-bar" id="progressBar"></div></div>
+  <div class="progress-text" id="progressText"></div>
+
+  <div class="actions">
+    <button id="btnPause">暂停</button>
+    <button id="btnReseed">重新生成</button>
+  </div>
+  <p class="hint">空格键暂停 / 继续 · 导出时请保持标签页在前台</p>
+</div>
+
+<!-- 导出结果弹窗 -->
+<div class="result-mask" id="resultMask">
+  <div class="result-card">
+    <h2><span class="ok">✓</span>视频导出完成</h2>
+    <div class="meta" id="resultMeta"></div>
+    <video id="resultVideo" controls playsinline></video>
+    <div class="result-actions">
+      <button class="btn-primary" id="btnDownload">下载视频</button>
+      <button id="btnCloseResult">关闭</button>
+    </div>
+    <div class="result-note" id="resultNote"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var cv  = document.getElementById('cv');
+  var ctx = cv.getContext('2d', { alpha: false });
+
+  var W = 0, H = 0, DPR = 1;
+  var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+
+  /* ==================== 参数 ==================== */
+  var params = {
+    count:     300,
+    spacing:   12,
+    jitter:    0.35,
+    playSpeed: 1,      // 预览播放速度倍率（不影响导出）
+    cycle:     3,
+    length:    240,
+    width:     2,
+    hue:       190,
+    hueRange:  0,
+    alpha:     0.75
+  };
+
+  /* ==================== 粒子 ==================== */
+  var particles = [];
+
+  function makeParticle() {
+    return { x0: Math.random(), y: 0, jit: Math.random() - 0.5 };
+  }
+
+  function relayout() {
+    var n = particles.length;
+    if (n === 0) return;
+    var REF_H = 1080;
+    var spacing = Math.max(1, params.spacing);
+    var rows = Math.max(1, Math.round(REF_H / spacing));
+    var rowH = 1 / rows;
+    var jr = params.jitter;
+
+    for (var i = 0; i < n; i++) {
+      var p = particles[i];
+      var row = i % rows;
+      var y = (row + 0.5) * rowH + p.jit * rowH * jr;
+      if (y < 0.002) y = 0.002;
+      if (y > 0.998) y = 0.998;
+      p.y = y;
+    }
+  }
+
+  function initParticles() {
+    var n = Math.max(1, Math.floor(params.count));
+    particles = [];
+    for (var i = 0; i < n; i++) particles.push(makeParticle());
+    relayout();
+  }
+
+  function ensureCount(n) {
+    n = Math.max(1, Math.floor(n));
+    while (particles.length < n) particles.push(makeParticle());
+    if (particles.length > n) particles.length = n;
+    relayout();
+  }
+
+  /* ==================== 核心渲染 ==================== */
+  function renderScene(g, w, h, t, P) {
+    var scale = h / 1080;
+    var L  = Math.max(1, P.length * scale);
+    var lw = Math.max(0.3, P.width * scale);
+
+    var D = w + 2 * L;
+    var v = D / P.cycle;
+
+    g.globalCompositeOperation = 'source-over';
+    g.fillStyle = '#000';
+    g.fillRect(0, 0, w, h);
+
+    g.globalCompositeOperation = 'lighter';
+    g.lineCap  = 'round';
+    g.lineJoin = 'round';
+
+    var n = particles.length;
+    var hue0 = P.hue;
+    var hueR = P.hueRange;
+    var alpha = P.alpha;
+
+    for (var i = 0; i < n; i++) {
+      var p = particles[i];
+
+      var xw = (p.x0 * D + v * t) % D;
+      if (xw < 0) xw += D;
+
+      var xh = xw - L;
+      var xt = xh - L;
+
+      if (xh < -2) continue;
+      if (xt > w + 2) continue;
+
+      var y = p.y * h;
+
+      var hue = hue0;
+      if (hueR > 0) hue += (p.y - 0.5) * hueR;
+      hue = ((hue % 360) + 360) % 360;
+
+      var cs = 'hsla(' + hue.toFixed(1) + ',92%,62%,';
+      var grad = g.createLinearGradient(xt, 0, xh, 0);
+      grad.addColorStop(0, cs + '0)');
+      grad.addColorStop(1, cs + alpha + ')');
+
+      g.strokeStyle = grad;
+      g.lineWidth = lw;
+      g.beginPath();
+      g.moveTo(xt, y);
+      g.lineTo(xh, y);
+      g.stroke();
+    }
+  }
+
+  /* ==================== 预览 ==================== */
+  var previewT = 0;
+  var lastTime = 0;
+  var paused = false;
+  var exporting = false;
+
+  function loop(now) {
+    requestAnimationFrame(loop);
+    if (!lastTime) { lastTime = now; return; }
+    var dt = (now - lastTime) / 1000;
+    lastTime = now;
+    if (dt > 0.1) dt = 0.1;
+    if (dt <= 0) return;
+    if (paused || exporting) return;
+    if (W < 1 || H < 1) return;
+
+    /* 播放速度倍率：只影响预览，导出仍按循环周期计算 */
+    previewT += dt * params.playSpeed;
+    renderScene(ctx, W, H, previewT, params);
+  }
+
+  /* 统一重绘入口：播放中交给上面的 rAF 循环；
+     暂停时立即补画一帧，否则拖参数只改状态、画面不刷新（那正是"暂停下来慢慢调"的用法）；
+     导出中不动，避免干扰离屏画布 */
+  function requestRedraw() {
+    if (exporting) return;
+    if (paused && W >= 1 && H >= 1) renderScene(ctx, W, H, previewT, params);
+  }
+
+  /* ==================== 尺寸 ==================== */
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth  || document.documentElement.clientWidth  || 800;
+    H = window.innerHeight || document.documentElement.clientHeight || 600;
+
+    cv.width  = Math.round(W * DPR);
+    cv.height = Math.round(H * DPR);
+    cv.style.width  = W + 'px';
+    cv.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    if (particles.length === 0) initParticles();
+    requestRedraw();   // 改尺寸会清空画布，暂停态下要立刻补画，避免留一片黑
+  }
+
+  /* ==================== 视觉参数面板 ==================== */
+  var controls = [
+    { k: 'count',     label: '粒子数量', min: 1,    max: 1500, step: 1,    dec: 0 },
+    { k: 'spacing',   label: '线条间距', min: 2,    max: 120,  step: 1,    dec: 0 },
+    { k: 'jitter',    label: '位置抖动', min: 0,    max: 1,    step: 0.01, dec: 2 },
+    { k: 'playSpeed', label: '播放速度', min: 0.1,  max: 5,    step: 0.1,  dec: 1, unit: '×' },
+    { k: 'cycle',     label: '循环周期', min: 0.5,  max: 15,   step: 0.05, dec: 2, unit: 's' },
+    { k: 'length',    label: '线条长度', min: 20,   max: 1200, step: 5,    dec: 0 },
+    { k: 'width',     label: '线条粗细', min: 0.3,  max: 500,  step: 0.1,  dec: 1 },
+    { k: 'hue',       label: '色相',     min: 0,    max: 360,  step: 1,    dec: 0 },
+    { k: 'hueRange',  label: '色彩跨度', min: 0,    max: 180,  step: 1,    dec: 0 },
+    { k: 'alpha',     label: '线条亮度', min: 0.05, max: 1,    step: 0.01, dec: 2 }
+  ];
+
+  var panelBody = document.getElementById('visual-controls');
+  var ui = {};
+
+  controls.forEach(function (c) {
+    var row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML =
+      '<div class="lbl"><span>' + c.label + '</span><span class="val"></span></div>' +
+      '<input type="range" min="' + c.min + '" max="' + c.max +
+      '" step="' + c.step + '" value="' + params[c.k] + '">';
+
+    var input = row.querySelector('input');
+    var valEl = row.querySelector('.val');
+
+    function show() {
+      valEl.textContent = Number(params[c.k]).toFixed(c.dec) + (c.unit || '');
+    }
+    show();
+
+    input.addEventListener('input', function () {
+      params[c.k] = parseFloat(input.value);
+      show();
+      if (c.k === 'count') ensureCount(params.count);
+      else if (c.k === 'spacing' || c.k === 'jitter') relayout();
+      else if (c.k === 'cycle') updateExportInfo();
+      requestRedraw();
+    });
+
+    panelBody.appendChild(row);
+    ui[c.k] = { input: input, show: show };
+  });
+
+  function syncUI() {
+    controls.forEach(function (c) {
+      ui[c.k].input.value = params[c.k];
+      ui[c.k].show();
+    });
+  }
+
+  /* ==================== 预设 ==================== */
+  var presets = {
+    '细雨': { count: 700, spacing: 4,  jitter: 0.6, playSpeed: 1, cycle: 2.5, length: 130, width: 1.0,  hue: 200, hueRange: 0, alpha: 0.65 },
+    '流光': { count: 170, spacing: 14, jitter: 0.4, playSpeed: 1, cycle: 4,   length: 440, width: 3.0,  hue: 190, hueRange: 0, alpha: 0.80 },
+    '霓虹': { count: 300, spacing: 9,  jitter: 0.5, playSpeed: 1, cycle: 3,   length: 260, width: 2.0,  hue: 285, hueRange: 0, alpha: 0.75 },
+    '光带': { count: 80,  spacing: 22, jitter: 0.3, playSpeed: 1, cycle: 5,   length: 700, width: 40,   hue: 195, hueRange: 0, alpha: 0.45 }
+  };
+
+  var presetBox = document.getElementById('presets');
+  Object.keys(presets).forEach(function (name) {
+    var b = document.createElement('button');
+    b.textContent = name;
+    b.addEventListener('click', function () {
+      if (exporting) return;
+      var p = presets[name];
+      for (var k in p) { if (p.hasOwnProperty(k)) params[k] = p[k]; }
+      syncUI();
+      initParticles();
+      updateExportInfo();
+      requestRedraw();
+    });
+    presetBox.appendChild(b);
+  });
+
+  /* ==================== 导出设置 ==================== */
+  var RES_PRESETS = [
+    { name: '1920 × 1080 (横屏)', w: 1920, h: 1080 },
+    { name: '1280 × 720 (横屏)',  w: 1280, h: 720  },
+    { name: '2560 × 1440 (2K)',   w: 2560, h: 1440 },
+    { name: '3840 × 2160 (4K)',   w: 3840, h: 2160 },
+    { name: '1080 × 1080 (方形)', w: 1080, h: 1080 },
+    { name: '1080 × 1920 (竖屏)', w: 1080, h: 1920 }
+  ];
+
+  var selRes    = document.getElementById('expRes');
+  var selFps    = document.getElementById('expFps');
+  var rngCycles = document.getElementById('expCycles');
+  var cyclesVal = document.getElementById('cyclesVal');
+
+  RES_PRESETS.forEach(function (r, i) {
+    var o = document.createElement('option');
+    o.value = i;
+    o.textContent = r.name;
+    selRes.appendChild(o);
+  });
+
+  function currentRes()    { return RES_PRESETS[parseInt(selRes.value, 10) || 0]; }
+  function currentFps()    { return parseInt(selFps.value, 10) || 60; }
+  function currentCycles() { return parseInt(rngCycles.value, 10) || 1; }
+
+  function alignedCycle() {
+    var fps = currentFps();
+    var f = Math.max(1, Math.round(params.cycle * fps));
+    return f / fps;
+  }
+
+  function updateExportInfo() {
+    var fps = currentFps();
+    var cycles = currentCycles();
+    var T = alignedCycle();
+    var frames = Math.round(T * fps) * cycles;
+
+    document.getElementById('infoCycle').textContent    = T.toFixed(2);
+    document.getElementById('infoDuration').textContent = (frames / fps).toFixed(2);
+    document.getElementById('infoFrames').textContent   = frames;
+    cyclesVal.textContent = cycles;
+  }
+
+  selRes.addEventListener('change', updateExportInfo);
+  selFps.addEventListener('change', updateExportInfo);
+  rngCycles.addEventListener('input', updateExportInfo);
+
+  /* ==================== 录制工具 ==================== */
+  function pickMime() {
+    var types = [
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm',
+      'video/mp4'
+    ];
+    for (var i = 0; i < types.length; i++) {
+      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(types[i])) {
+        return types[i];
+      }
+    }
+    return '';
+  }
+
+  function estimateBitrate(w, h, fps) {
+    var bits = w * h * fps * 0.12;
+    return Math.round(Math.min(Math.max(bits, 2e6), 6e7));
+  }
+
+  function formatBytes(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+    return (b / (1024 * 1024)).toFixed(2) + ' MB';
+  }
+
+  /* ==================== 结果弹窗 ==================== */
+  var resultMask  = document.getElementById('resultMask');
+  var resultMeta  = document.getElementById('resultMeta');
+  var resultVideo = document.getElementById('resultVideo');
+  var resultNote  = document.getElementById('resultNote');
+  var btnDownload = document.getElementById('btnDownload');
+  var btnClose    = document.getElementById('btnCloseResult');
+
+  var pendingBlob = null;
+  var pendingName = '';
+  var pendingUrl  = '';
+
+  btnDownload.addEventListener('click', function () {
+    if (!pendingBlob) return;
+    var a = document.createElement('a');
+    a.href = pendingUrl;
+    a.download = pendingName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    resultNote.textContent = '已触发下载。若浏览器未自动保存，请检查是否被拦截，或右键预览视频选择“视频另存为”。';
+  });
+
+  btnClose.addEventListener('click', function () {
+    resultMask.classList.remove('show');
+    if (pendingUrl) {
+      URL.revokeObjectURL(pendingUrl);
+      pendingUrl = '';
+    }
+    pendingBlob = null;
+    resultVideo.removeAttribute('src');
+  });
+
+  function showResult(blob, name, info) {
+    if (pendingUrl) URL.revokeObjectURL(pendingUrl);
+
+    pendingBlob = blob;
+    pendingName = name;
+    pendingUrl  = URL.createObjectURL(blob);
+
+    resultMeta.innerHTML =
+      '文件名：<b>' + name + '</b><br>' +
+      '文件大小：<b>' + formatBytes(blob.size) + '</b><br>' +
+      '分辨率：<b>' + info.w + ' × ' + info.h + '</b>　帧率：<b>' + info.fps + ' fps</b><br>' +
+      '总帧数：<b>' + info.frames + '</b>　循环周期：<b>' + info.duration.toFixed(2) + ' 秒</b><br>' +
+      '实际录制时长：<b>' + (info.actual != null ? info.actual.toFixed(2) : info.duration.toFixed(2)) + ' 秒</b>';
+
+    resultVideo.src = pendingUrl;
+    resultVideo.load();
+
+    resultNote.textContent = '点击“下载视频”保存文件，或右键预览视频选择“视频另存为”。';
+
+    resultMask.classList.add('show');
+
+    try {
+      var a = document.createElement('a');
+      a.href = pendingUrl;
+      a.download = pendingName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      resultNote.textContent = '已尝试自动下载。若没有弹出保存提示，请点击下方“下载视频”按钮，或右键预览视频选择“视频另存为”。';
+    } catch (e) { /* 忽略，用户可手动点按钮 */ }
+  }
+
+  /* ==================== 导出流程 ==================== */
+  var btnExport    = document.getElementById('btnExport');
+  var progressWrap = document.getElementById('progressWrap');
+  var progressBar  = document.getElementById('progressBar');
+  var progressText = document.getElementById('progressText');
+
+  function setControlsDisabled(dis) {
+    controls.forEach(function (c) { ui[c.k].input.disabled = dis; });
+    selRes.disabled = dis;
+    selFps.disabled = dis;
+    rngCycles.disabled = dis;
+    document.getElementById('btnReseed').disabled = dis;
+    presetBox.querySelectorAll('button').forEach(function (b) { b.disabled = dis; });
+  }
+
+  async function doExport() {
+    if (exporting) return;
+
+    if (typeof MediaRecorder === 'undefined' || !HTMLCanvasElement.prototype.captureStream) {
+      alert('当前浏览器不支持视频导出（缺少 MediaRecorder 或 captureStream）。\n请使用最新版 Chrome、Edge 或 Safari。');
+      return;
+    }
+
+    var mime = pickMime();
+    if (!mime) {
+      alert('当前浏览器不支持任何可用的视频编码格式。');
+      return;
+    }
+
+    exporting = true;
+    setControlsDisabled(true);
+    btnExport.disabled = true;
+    btnExport.textContent = '准备中…';
+    progressWrap.classList.add('show');
+    progressBar.style.width = '0%';
+    progressText.textContent = '正在准备…';
+
+    var res    = currentRes();
+    var fps    = currentFps();
+    var cycles = currentCycles();
+
+    var T = alignedCycle();
+    var framesPerCycle = Math.round(T * fps);
+    var totalFrames = framesPerCycle * cycles;
+    var totalDuration = totalFrames / fps;
+
+    var oc = document.createElement('canvas');
+    oc.width  = res.w;
+    oc.height = res.h;
+    oc.style.position = 'fixed';
+    oc.style.left = '-99999px';
+    oc.style.top = '0';
+    oc.style.width = res.w + 'px';
+    oc.style.height = res.h + 'px';
+    document.body.appendChild(oc);
+
+    var g = oc.getContext('2d', { alpha: false });
+
+    var P = {
+      count: params.count, spacing: params.spacing, jitter: params.jitter,
+      cycle: T, length: params.length, width: params.width,
+      hue: params.hue, hueRange: params.hueRange, alpha: params.alpha
+    };
+
+    renderScene(g, res.w, res.h, 0, P);
+
+    var stream, recorder, chunks = [];
+    try {
+      stream = oc.captureStream(fps);
+      recorder = new MediaRecorder(stream, {
+        mimeType: mime,
+        videoBitsPerSecond: estimateBitrate(res.w, res.h, fps)
+      });
+    } catch (err) {
+      alert('创建录制器失败：' + err.message);
+      finish();
+      return;
+    }
+
+    recorder.ondataavailable = function (e) {
+      if (e.data && e.data.size > 0) chunks.push(e.data);
+    };
+
+    var stopped = new Promise(function (r) { recorder.onstop = r; });
+
+    var recStartWall = performance.now();
+    recorder.start();
+    btnExport.textContent = '录制中…';
+
+    var interval = 1000 / fps;
+    var startWall = performance.now();
+
+    try {
+      for (var i = 1; i <= totalFrames; i++) {
+        var target = startWall + i * interval;
+        var wait = target - performance.now();
+        if (wait > 1) await sleep(wait);
+
+        var t = (i / totalFrames) * totalDuration;
+        renderScene(g, res.w, res.h, t, P);
+
+        var prog = i / totalFrames;
+        progressBar.style.width = (prog * 100).toFixed(1) + '%';
+        progressText.textContent = '渲染 ' + Math.round(prog * 100) + '%  (' + i + ' / ' + totalFrames + ')';
+      }
+
+      // 末帧强制推流，只等一个帧间隔就停录。
+      // 注意：这里若在 stop() 之前长等（旧写法 sleep 300ms+），录制器仍在跑，
+      // 会把最后一帧的静止画面录进视频尾部，循环回接时出现明显停顿。
+      renderScene(g, res.w, res.h, totalDuration, P);
+      var vTrack = stream.getVideoTracks()[0];
+      if (vTrack && vTrack.requestFrame) vTrack.requestFrame();
+      await sleep(Math.min(interval, 40));
+
+      recorder.stop();
+      await stopped;
+      var actualDuration = (performance.now() - recStartWall) / 1000;
+
+      progressText.textContent = '正在封装文件…';
+      await sleep(80);
+
+      var blob = new Blob(chunks, { type: mime });
+
+      if (!blob.size) {
+        progressText.textContent = '导出失败：录制数据为空。请尝试降低分辨率或帧率后重试。';
+        finish();
+        return;
+      }
+
+      var ext  = mime.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
+      var name = 'flow-' + res.w + 'x' + res.h + '-' + fps + 'fps-' +
+                 totalDuration.toFixed(1) + 's.' + ext;
+
+      progressText.textContent = '完成';
+      progressBar.style.width = '100%';
+
+      showResult(blob, name, {
+        w: res.w, h: res.h, fps: fps,
+        duration: totalDuration, frames: totalFrames,
+        actual: actualDuration
+      });
+
+    } catch (err) {
+      try { recorder.stop(); } catch (e2) {}
+      progressText.textContent = '导出失败：' + err.message;
+    }
+
+    finish();
+
+    function finish() {
+      exporting = false;
+      setControlsDisabled(false);
+      btnExport.disabled = false;
+      btnExport.textContent = '导出视频';
+      setTimeout(function () {
+        progressWrap.classList.remove('show');
+        progressBar.style.width = '0%';
+        progressText.textContent = '';
+      }, 2600);
+      if (oc.parentNode) oc.parentNode.removeChild(oc);
+    }
+  }
+
+  btnExport.addEventListener('click', doExport);
+
+  /* ==================== 其它按钮 ==================== */
+  var btnPause = document.getElementById('btnPause');
+  btnPause.addEventListener('click', function () {
+    paused = !paused;
+    btnPause.textContent = paused ? '继续' : '暂停';
+  });
+
+  document.getElementById('btnReseed').addEventListener('click', function () {
+    if (exporting) return;
+    initParticles();
+    previewT = 0;
+    renderScene(ctx, W, H, 0, params);
+  });
+
+  window.addEventListener('keydown', function (e) {
+    if (e.code === 'Space' && !exporting) {
+      e.preventDefault();
+      btnPause.click();
+    }
+  });
+
+  /* ==================== 启动 ==================== */
+  var rt = 0;
+  window.addEventListener('resize', function () {
+    clearTimeout(rt);
+    rt = setTimeout(resize, 120);
+  });
+
+  resize();
+  syncUI();
+  updateExportInfo();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
