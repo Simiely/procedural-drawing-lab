@@ -13,7 +13,9 @@
   header h1 span{ background:linear-gradient(90deg,var(--acc),var(--acc2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
   header p{ color:var(--mut); margin-top:8px; font-size:14px; line-height:1.7; max-width:760px; }
   .cats{ display:flex; flex-wrap:wrap; gap:8px; margin:22px 0 14px; }
-  .cat{ padding:6px 14px; border-radius:8px; background:var(--card); border:1px solid var(--line); color:var(--acc); font-size:12px; }
+  .cat{ padding:6px 14px; border-radius:8px; background:var(--card); border:1px solid var(--line); color:var(--acc); font-size:12px; cursor:pointer; transition:.15s; user-select:none; }
+  .cat:hover{ border-color:var(--acc); }
+  .cat.active{ background:var(--acc2); border-color:var(--acc2); color:#fff; }
   .tags{ display:flex; flex-wrap:wrap; gap:10px; margin:0 0 22px; }
   .tag{ padding:7px 16px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--mut); font-size:13px; cursor:pointer; transition:.15s; user-select:none; }
   .tag:hover{ border-color:var(--acc); color:var(--acc); }
@@ -59,6 +61,14 @@ const EXPERIMENTS = [
     thumb:"screenshots/flow-field.png"
   },
   {
+    title:"粒子流动线条 · Flow Lines",
+    cat:"粒子动势",
+    desc:"粒子水平拖出流光丝线，匀速横贯画面。10 项视觉参数 + 4 套预设，并可导出 1080P～4K 的循环视频。",
+    tags:["粒子","流光","视频导出"],
+    href:"experiments/粒子动势/flow-lines.html",
+    thumb:"screenshots/flow-lines.png"
+  },
+  {
     title:"星芒 · Star Spikes",
     cat:"几何生成",
     desc:"参数化星芒/芒星：尖角数量、中心圆半径、尖角长度、基部半角与内凹程度均可调，还能自定义图形与背景色。",
@@ -86,7 +96,8 @@ let activeTag = "全部";
 function renderCats(){
   const box=document.getElementById("cats"); box.innerHTML="";
   ["全部",...cats].forEach(c=>{
-    const el=document.createElement("span"); el.className="cat"; el.textContent=c;
+    const el=document.createElement("span"); el.className="cat"+(c===activeCat?" active":""); el.textContent=c;
+    el.onclick=()=>{ activeCat=c; renderCats(); renderCards(); };
     box.appendChild(el);
   });
 }

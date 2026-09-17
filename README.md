@@ -9,7 +9,8 @@
 ## 特性
 
 - 零依赖、单文件，浏览器直接打开即用，无需构建
-- 每图带 **参数滑杆 + 随机种子重置**，实时调参
+- 每图带**参数滑杆实时调参**；流场类实验另带可复现随机种子（几何图形是确定性的，无需种子）
+- 部分实验支持**导出循环视频**（Canvas `captureStream` + `MediaRecorder`，输出 WebM/MP4）
 - `index.html` 卡片式浏览，按分类 / 标签筛选，配真实截图
 - 遵循 [knowledge-base 单项目规范](https://github.com/Simiely/knowledge-base) 维护
 
@@ -17,7 +18,7 @@
 
 1. 克隆本仓库
 2. 打开 `index.html` 浏览全部实验，或直接双击任意 `experiments/*/*.html`
-3. 拖动参数、点「重置种子 / 重绘」，观察图形变化
+3. 拖动参数、点「重置种子 / 重新生成」，观察图形变化
 4. 已在 GitHub Pages 在线部署，可直接访问 https://simiely.github.io/procedural-drawing-lab/
 
 ## 实验清单（索引）
@@ -25,6 +26,7 @@
 | 截图 | 实验 | 分类 | 说明 | 参数要点 |
 |---|---|---|---|---|
 | ![流场粒子](screenshots/flow-field.png) | [流场粒子 Flow Field](experiments/粒子动势/flow-field.html) | 粒子动势 | 粒子沿确定性噪声场流动成丝带 | 数量 / 密度 / 噪声强度 / 轨迹 / 配色 / 种子 |
+| ![流动线条](screenshots/flow-lines.png) | [粒子流动线条 Flow Lines](experiments/粒子动势/flow-lines.html) | 粒子动势 | 粒子水平拖出流光丝线，匀速横贯画面，**可导出循环视频** | 数量 / 间距 / 抖动 / 周期 / 长度 / 粗细 / 色相 / 亮度 + 导出分辨率·帧率·循环次数 |
 | ![星芒](screenshots/star-spikes.png) | [星芒 Star Spikes](experiments/几何生成/star-spikes.html) | 几何生成 | 参数化星芒：尖角可旋转分布，内凹成芒 | 尖角数 / 中心圆半径 / 尖角长度 / 基部半角 / 内凹程度 / 颜色 |
 | ![雪花](screenshots/snowflake.png) | [雪花 Snowflake](experiments/几何生成/snowflake.html) | 几何生成 | 参数化雪花：分形分支 + 尖端 V 形，旋转复制对称 | 对称臂数 / 主臂与分支长度 / 张开角度 / 递减比例 / 尖端 V 形 |
 
