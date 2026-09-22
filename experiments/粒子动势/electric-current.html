@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>电流 · Electric Current</title>
+<style>
+  :root{ --acc:#5fc9ff; --acc2:#7c6cf0; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ width:100%; height:100%; overflow:hidden; background:#000; }
+  #cv{ display:block; position:absolute; inset:0; }
+
+  .panel{
+    position:fixed; top:16px; right:16px; width:272px;
+    max-height:calc(100vh - 32px); overflow-y:auto;
+    padding:14px 16px 16px;
+    background:rgba(12,15,22,.8);
+    -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px);
+    border:1px solid rgba(255,255,255,.09);
+    border-radius:16px;
+    color:#c9d2e3;
+    font:12px/1.4 system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    box-shadow:0 18px 50px rgba(0,0,0,.65);
+    user-select:none;
+    z-index:10;
+  }
+  .head{ margin-bottom:12px; }
+  .head h1{ font-size:13px; font-weight:600; letter-spacing:.06em; color:#eaf1ff; }
+  .head h1::before{
+    content:""; display:inline-block; width:6px; height:6px; border-radius:50%;
+    background:var(--acc); margin-right:8px; vertical-align:1px;
+    box-shadow:0 0 10px var(--acc);
+  }
+  .head .sub{ margin-top:5px; font-size:10.5px; color:#5d687a; line-height:1.5; }
+
+  .section-title{
+    margin:16px 0 10px; padding-top:12px;
+    border-top:1px solid rgba(255,255,255,.08);
+    font-size:11px; color:#8b96a8; letter-spacing:.1em; font-weight:600;
+  }
+  .section-title:first-of-type{ border-top:none; margin-top:4px; padding-top:0; }
+
+  .row{ margin-bottom:10px; }
+  .lbl{ display:flex; justify-content:space-between; margin-bottom:5px; color:#7b8699; font-size:11px; }
+  .lbl .val{ color:var(--acc); font-variant-numeric:tabular-nums; font-weight:500; }
+
+  input[type=range]{
+    -webkit-appearance:none; appearance:none;
+    width:100%; height:3px; border-radius:3px;
+    background:rgba(255,255,255,.12); outline:none; cursor:pointer; display:block;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:13px; height:13px; border-radius:50%;
+    background:var(--acc); border:2px solid #0b0e15;
+    box-shadow:0 0 8px rgba(95,201,255,.7); transition:transform .15s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover{ transform:scale(1.25); }
+  input[type=range]::-moz-range-thumb{
+    width:13px; height:13px; border-radius:50%; background:var(--acc);
+    border:2px solid #0b0e15; box-shadow:0 0 8px rgba(95,201,255,.7);
+  }
+  input[type=range]:disabled{ opacity:.35; cursor:not-allowed; }
+
+  select{
+    width:100%; padding:6px 8px;
+    background:rgba(255,255,255,.06); color:#c9d2e3;
+    border:1px solid rgba(255,255,255,.12); border-radius:8px;
+    font-size:12px; font-family:inherit; outline:none; cursor:pointer;
+  }
+  select:focus{ border-color:rgba(95,201,255,.6); }
+  select option{ background:#12161f; color:#c9d2e3; }
+  select:disabled{ opacity:.4; cursor:not-allowed; }
+
+  button{
+    background:rgba(255,255,255,.06); color:#c9d2e3;
+    border:1px solid rgba(255,255,255,.1); border-radius:8px;
+    padding:7px 10px; font-size:12px; font-family:inherit; cursor:pointer;
+    transition:background .18s, border-color .18s, color .18s;
+  }
+  button:hover:not(:disabled){ background:rgba(95,201,255,.16); border-color:rgba(95,201,255,.5); color:#eaf9ff; }
+  button:active:not(:disabled){ transform:translateY(1px); }
+  button:disabled{ opacity:.4; cursor:not-allowed; }
+  button.active{
+    background:rgba(95,201,255,.20);
+    border-color:rgba(95,201,255,.70);
+    color:#e2f4ff;
+    box-shadow:0 0 14px rgba(95,201,255,.28), inset 0 0 12px rgba(95,201,255,.14);
+  }
+
+  .seg{ display:flex; gap:6px; }
+  .seg button{ flex:1; }
+
+  #btnExport{
+    width:100%; padding:10px 12px; font-size:12.5px; margin-top:10px;
+    background:rgba(95,201,255,.14); color:#c8f4fb;
+    border-color:rgba(95,201,255,.45);
+    font-weight:500; letter-spacing:.05em;
+  }
+  #btnExport:hover:not(:disabled){ background:rgba(95,201,255,.26); }
+
+  .hint{
+    margin:10px 0 0; font-size:10.5px; color:#5d687a;
+    line-height:1.5; text-align:center; min-height:14px;
+  }
+  @media (max-width:640px){
+    .panel{ width:auto; left:12px; right:12px; top:auto; bottom:12px; max-height:52vh; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="cv"></canvas>
+
+<aside class="panel">
+  <div class="head">
+    <h1>电流 · Electric Current</h1>
+    <div class="sub">折线拖出电弧丝线 · 可切方向 · 可导出视频</div>
+  </div>
+
+  <div class="section-title">轨迹参数</div>
+  <div class="row">
+    <div class="lbl"><span>数量</span><span class="val" id="vCount">30</span></div>
+    <input type="range" id="rCount" min="4" max="1500" step="1" value="30">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>速度</span><span class="val" id="vSpeed">7.3×</span></div>
+    <input type="range" id="rSpeed" min="10" max="800" step="5" value="730">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>长度</span><span class="val" id="vLength">12.0×</span></div>
+    <input type="range" id="rLength" min="10" max="1200" step="10" value="1200">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>粗细</span><span class="val" id="vWidth">0.8×</span></div>
+    <input type="range" id="rWidth" min="10" max="800" step="5" value="80">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>折线</span><span class="val" id="vZig">0.8×</span></div>
+    <input type="range" id="rZig" min="0" max="300" step="1" value="80">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>发光</span><span class="val" id="vGlow">1.0×</span></div>
+    <input type="range" id="rGlow" min="20" max="200" step="5" value="100">
+  </div>
+
+  <div class="section-title">流动方向</div>
+  <div class="row">
+    <div class="seg">
+      <button class="dirBtn active" data-dir="up">↑ 向上</button>
+      <button class="dirBtn" data-dir="right">→ 向右</button>
+    </div>
+  </div>
+
+  <div class="section-title">导出视频</div>
+  <div class="row">
+    <select id="selRes">
+      <option value="720,720">720 × 720</option>
+      <option value="1080,1080" selected>1080 × 1080</option>
+      <option value="1080,1920">1080 × 1920 竖</option>
+      <option value="1920,1080">1920 × 1080 横</option>
+      <option value="2160,2160">2160 × 2160</option>
+    </select>
+  </div>
+  <div class="row">
+    <select id="selDur">
+      <option value="3">3 秒</option>
+      <option value="5" selected>5 秒</option>
+      <option value="10">10 秒</option>
+      <option value="15">15 秒</option>
+      <option value="20">20 秒</option>
+      <option value="30">30 秒</option>
+    </select>
+  </div>
+  <button id="btnExport">导出视频</button>
+  <div class="hint" id="hint">WebM 格式 · 导出期间预览暂停</div>
+</aside>
+
+<script>
+(() => {
+  const canvas = document.getElementById('cv');
+  const ctx = canvas.getContext('2d');
+
+  /* ================= 配置 ================= */
+  const CFG = {
+    count: 30,
+    speedMul: 7.3,
+    lengthMul: 12.0,
+    widthMul: 0.8,
+    zigzagMul: 0.8,
+    glowMul: 1.0,
+    direction: 'up'
+  };
+
+  const MAX_PTS = 3000;
+  const BASE_SIZE = 400;
+  const ALPHA_REF_COUNT = 24;
+
+  /* ================= 状态 ================= */
+  let W = 0, H = 0;
+  let lines = [];
+  let last = performance.now();
+  let paused = false;
+
+  /* ================= 工具函数 ================= */
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+
+  const tri = t => {
+    const f = t - Math.floor(t);
+    return f < 0.5 ? f * 2 : 2 - f * 2;
+  };
+
+  const dirSign = () => (CFG.direction === 'up' ? -1 : 1);
+
+  function autoAlphaScale() {
+    return Math.min(1, Math.sqrt(ALPHA_REF_COUNT / Math.max(CFG.count, 1)));
+  }
+
+  function startPos(w, h) {
+    const buf = Math.min(w, h) * 0.5;
+    return CFG.direction === 'up'
+      ? h + buf + 20
+      : -buf - 20;
+  }
+
+  function respawnThreshold(w, h) {
+    const buf = Math.min(w, h) * 0.3;
+    return CFG.direction === 'up'
+      ? -buf
+      : w + buf;
+  }
+
+  /* ================= 折线（多波叠加） ================= */
+  function lateralOffset(l, s) {
+    const amp = l.ampBase * CFG.zigzagMul;
+    if (amp < 0.01) return 0;
+
+    const w1 = tri(s * l.freq        + l.phase)                    - 0.5;
+    const w2 = tri(s * l.freq * 2.37 + l.phase * 1.61 + l.seed1)   - 0.5;
+    const w3 = tri(s * l.freq * 0.47 + l.phase * 0.83 + l.seed2)   - 0.5;
+
+    return (w1 * 0.65 + w2 * 0.28 + w3 * 0.22) * 2 * amp;
+  }
+
+  function posAt(l, s) {
+    if (CFG.direction === 'up') {
+      return { x: l.baseLateral + lateralOffset(l, s), y: s };
+    }
+    return { x: s, y: l.baseLateral + lateralOffset(l, s) };
+  }
+
+  /* ================= 创建线条 ================= */
+  function makeLine(w, h) {
+    const scale = Math.min(w, h) / BASE_SIZE;
+    return {
+      jitter: (Math.random() - 0.5),
+      baseLateral: 0,
+      baseSpeed: (0.7 + Math.random() * 1.8) * scale,
+      baseTail:  (100 + Math.random() * 250) * scale,
+      speed: 0, tailLen: 0,
+      ampBase: (8 + Math.random() * 42) * scale,
+      freq:   (0.0025 + Math.random() * 0.008) / scale,
+      phase: Math.random() * Math.PI * 2,
+      seed1: Math.random() * 100,
+      seed2: Math.random() * 100,
+      hue:   165 + Math.random() * 135,
+      alpha: 0.45 + Math.random() * 0.55,
+      p: 0,
+      pts: []
+    };
+  }
+
+  function layoutLines(arr, w, h) {
+    const n = arr.length || 1;
+    const margin = Math.min(w, h) * 0.03;
+
+    if (CFG.direction === 'up') {
+      const colW = w / n;
+      for (let i = 0; i < n; i++) {
+        arr[i].baseLateral = clamp(
+          colW * (i + 0.5) + arr[i].jitter * colW * 1.4,
+          margin, w - margin
+        );
+      }
+    } else {
+      const rowH = h / n;
+      for (let i = 0; i < n; i++) {
+        arr[i].baseLateral = clamp(
+          rowH * (i + 0.5) + arr[i].jitter * rowH * 1.4,
+          margin, h - margin
+        );
+      }
+    }
+  }
+
+  function seedPts(l, w, h) {
+    l.pts.length = 0;
+    const step = 4 * (Math.min(w, h) / BASE_SIZE);
+    const nSeg = Math.min(MAX_PTS, Math.ceil(l.tailLen / step));
+    const sgn = dirSign();
+    const sHead = l.p;
+    const sTail = l.p - sgn * l.tailLen;
+    const margin = Math.min(w, h) * 0.15;
+
+    for (let k = 0; k <= nSeg; k++) {
+      const s = sTail + (sHead - sTail) * (k / nSeg);
+      const pos = posAt(l, s);
+      if (CFG.direction === 'up' && pos.y > h + margin) continue;
+      if (CFG.direction === 'right' && pos.x < -margin) continue;
+      l.pts.push({ x: pos.x, y: pos.y, s });
+    }
+  }
+
+  function buildScene(w, h) {
+    const arr = [];
+    const n = CFG.count;
+    const start = startPos(w, h);
+    const totalSpan = (CFG.direction === 'up' ? h : w) * 1.5;
+    const sgn = dirSign();
+
+    for (let i = 0; i < n; i++) {
+      const l = makeLine(w, h);
+      const frac = (i + Math.random() * 0.9) / n;
+      l.p = start - sgn * frac * totalSpan;
+      arr.push(l);
+    }
+    layoutLines(arr, w, h);
+    for (const l of arr) seedPts(l, w, h);
+    return arr;
+  }
+
+  /* ================= 绘制单条轨迹 ================= */
+  const bufL = [], bufR = [];
+
+  function drawLine(c, l, w, h, widthMul, alphaScale) {
+    const pts = l.pts, n = pts.length;
+    if (n < 2) return;
+
+    const tail = pts[0], head = pts[n - 1];
+    const margin = Math.min(w, h) * 0.2;
+    /* 只有「整条轨迹」都落在画布外才剔除。
+       若像原来那样「任一端越界就整体丢弃」，向右流动时尾巴恒在左侧、
+       距离等于尾长（长尾长下可达数千像素），永远追不进画布 → 整个方向黑屏。 */
+    if (CFG.direction === 'up') {
+      if (tail.y > h + margin && head.y > h + margin) return;   // 尚未从下方进入
+      if (tail.y < -margin  && head.y < -margin)  return;       // 已完全离开上方
+    } else {
+      if (tail.x < -margin  && head.x < -margin)  return;       // 尚未从左侧进入
+      if (tail.x > w + margin && head.x > w + margin) return;   // 已完全离开右侧
+    }
+
+    const scale = Math.min(w, h) / BASE_SIZE;
+    const wMul = widthMul * scale;
+
+    bufL.length = 0;
+    bufR.length = 0;
+
+    for (let i = 0; i < n; i++) {
+      const p = pts[i];
+      const t = i / (n - 1);
+      const half = (0.4 + 2.6 * t) * 0.5 * wMul;
+
+      let dx, dy;
+      if (i === 0) {
+        dx = pts[1].x - p.x;  dy = pts[1].y - p.y;
+      } else if (i === n - 1) {
+        dx = p.x - pts[n - 2].x; dy = p.y - pts[n - 2].y;
+      } else {
+        dx = pts[i + 1].x - pts[i - 1].x;
+        dy = pts[i + 1].y - pts[i - 1].y;
+      }
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len, ny = dx / len;
+
+      bufL.push(p.x + nx * half, p.y + ny * half);
+      bufR.push(p.x - nx * half, p.y - ny * half);
+    }
+
+    c.beginPath();
+    c.moveTo(bufL[0], bufL[1]);
+    for (let i = 1; i < n; i++) c.lineTo(bufL[i * 2], bufL[i * 2 + 1]);
+    for (let i = n - 1; i >= 0; i--) c.lineTo(bufR[i * 2], bufR[i * 2 + 1]);
+    c.closePath();
+
+    let g;
+    if (CFG.direction === 'up') {
+      g = c.createLinearGradient(0, tail.y, 0, head.y);
+    } else {
+      g = c.createLinearGradient(tail.x, 0, head.x, 0);
+    }
+    for (let k = 0; k <= 8; k++) {
+      const t = k / 8;
+      const a = t * t * l.alpha * alphaScale;
+      g.addColorStop(t, `hsla(${l.hue},95%,${46 + 30 * t}%,${a})`);
+    }
+    c.fillStyle = g;
+    c.fill();
+  }
+
+  /* ================= 一帧的推进 + 绘制 ================= */
+  function stepAndDraw(c, arr, w, h, dt) {
+    const sgn = dirSign();
+    const respawn = respawnThreshold(w, h);
+    const step = 4 * (Math.min(w, h) / BASE_SIZE);
+
+    const alphaScale = autoAlphaScale() * CFG.glowMul;
+
+    c.clearRect(0, 0, w, h);
+    c.globalCompositeOperation = 'screen';
+
+    for (let i = 0; i < arr.length; i++) {
+      const l = arr[i];
+
+      l.speed = l.baseSpeed * CFG.speedMul;
+      l.tailLen = l.baseTail * CFG.lengthMul;
+
+      l.p += sgn * l.speed * dt;
+
+      const pts = l.pts;
+      const lastPt = pts[pts.length - 1];
+      if (!lastPt || Math.abs(l.p - lastPt.s) >= step) {
+        const pos = posAt(l, l.p);
+        pts.push({ x: pos.x, y: pos.y, s: l.p });
+      }
+
+      while (pts.length > 0 && Math.abs(pts[0].s - l.p) > l.tailLen) {
+        pts.shift();
+      }
+      if (pts.length > MAX_PTS) pts.splice(0, pts.length - MAX_PTS);
+
+      const out = CFG.direction === 'up' ? l.p < respawn : l.p > respawn;
+
+      if (out) {
+        l.p = startPos(w, h) + sgn * Math.random() * 80;
+        const scl = Math.min(w, h) / BASE_SIZE;
+        l.baseSpeed = (0.7 + Math.random() * 1.8) * scl;
+        l.baseTail  = (100 + Math.random() * 250) * scl;
+        l.ampBase   = (8 + Math.random() * 42) * scl;
+        l.freq      = (0.0025 + Math.random() * 0.008) / scl;
+        l.phase     = Math.random() * Math.PI * 2;
+        l.seed1     = Math.random() * 100;
+        l.seed2     = Math.random() * 100;
+        l.hue       = 165 + Math.random() * 135;
+        l.alpha     = 0.45 + Math.random() * 0.55;
+        l.pts.length = 0;
+        continue;
+      }
+
+      drawLine(c, l, w, h, CFG.widthMul, alphaScale);
+    }
+
+    c.globalCompositeOperation = 'source-over';
+  }
+
+  /* ================= 预览尺寸 ================= */
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth  || document.documentElement.clientWidth  || 800;
+    H = window.innerHeight || document.documentElement.clientHeight || 600;
+    canvas.width  = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    lines = buildScene(W, H);
+  }
+
+  /* ================= 主循环 ================= */
+  function frame(now) {
+    const dt = Math.min((now - last) / 16.667, 3);
+    last = now;
+
+    if (!paused) {
+      stepAndDraw(ctx, lines, W, H, dt);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  /* ================= 交互 ================= */
+  const $ = id => document.getElementById(id);
+
+  $('rCount').addEventListener('input', e => {
+    CFG.count = +e.target.value;
+    $('vCount').textContent = CFG.count;
+    lines = buildScene(W, H);
+  });
+
+  $('rSpeed').addEventListener('input', e => {
+    CFG.speedMul = +e.target.value / 100;
+    $('vSpeed').textContent = CFG.speedMul.toFixed(1) + '×';
+  });
+
+  $('rLength').addEventListener('input', e => {
+    CFG.lengthMul = +e.target.value / 100;
+    $('vLength').textContent = CFG.lengthMul.toFixed(1) + '×';
+  });
+
+  $('rWidth').addEventListener('input', e => {
+    CFG.widthMul = +e.target.value / 100;
+    $('vWidth').textContent = CFG.widthMul.toFixed(1) + '×';
+  });
+
+  $('rZig').addEventListener('input', e => {
+    CFG.zigzagMul = +e.target.value / 100;
+    const v = CFG.zigzagMul;
+    $('vZig').textContent = v <= 0.001 ? '直线' : v.toFixed(1) + '×';
+    for (const l of lines) {
+      for (const p of l.pts) {
+        const pos = posAt(l, p.s);
+        p.x = pos.x; p.y = pos.y;
+      }
+    }
+  });
+
+  $('rGlow').addEventListener('input', e => {
+    CFG.glowMul = +e.target.value / 100;
+    $('vGlow').textContent = CFG.glowMul.toFixed(1) + '×';
+  });
+
+  document.querySelectorAll('.dirBtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.classList.contains('active')) return;
+      document.querySelectorAll('.dirBtn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      CFG.direction = btn.dataset.dir;
+      lines = buildScene(W, H);
+    });
+  });
+
+  let rt;
+  window.addEventListener('resize', () => {
+    clearTimeout(rt);
+    rt = setTimeout(resize, 150);
+  });
+
+  /* ================= 视频导出 ================= */
+  function getSupportedMimeType() {
+    const types = [
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm',
+      'video/mp4'
+    ];
+    for (const t of types) {
+      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) {
+        return t;
+      }
+    }
+    return '';
+  }
+
+  const btnExport = $('btnExport');
+  const hint = $('hint');
+
+  /* 导出期间锁住面板，避免改了参数却看不到效果（导出用的是独立离屏画布） */
+  function setControlsDisabled(dis) {
+    document.querySelectorAll('.panel input, .panel select, .panel .dirBtn').forEach(el => {
+      el.disabled = dis;
+    });
+  }
+
+  async function exportVideo() {
+    if (!canvas.captureStream || typeof MediaRecorder === 'undefined') {
+      hint.textContent = '当前浏览器不支持视频导出';
+      return;
+    }
+
+    const [vw, vh] = $('selRes').value.split(',').map(Number);
+    const durSec = +$('selDur').value;
+
+    btnExport.disabled = true;
+    setControlsDisabled(true);
+    paused = true;
+
+    try {
+      const vc = document.createElement('canvas');
+      vc.width = vw;
+      vc.height = vh;
+      const vctx = vc.getContext('2d');
+
+      const vLines = buildScene(vw, vh);
+      const stream = vc.captureStream(60);
+
+      const mimeType = getSupportedMimeType();
+      const bitrate = Math.round(Math.max(vw * vh * 4, 4_000_000));
+      const recorder = new MediaRecorder(stream, {
+        ...(mimeType ? { mimeType } : {}),
+        videoBitsPerSecond: bitrate
+      });
+
+      const chunks = [];
+      recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+
+      const stopped = new Promise(res => { recorder.onstop = res; });
+
+      recorder.start();
+
+      const t0 = performance.now();
+      const tEnd = t0 + durSec * 1000;
+      let tPrev = t0;
+
+      await new Promise(resolve => {
+        function loop() {
+          const now = performance.now();
+          if (now >= tEnd) { resolve(); return; }
+
+          const dt = Math.min((now - tPrev) / 16.667, 3);
+          tPrev = now;
+
+          stepAndDraw(vctx, vLines, vw, vh, dt);
+
+          const left = Math.max(0, (tEnd - now) / 1000);
+          hint.textContent = `导出中… 剩余 ${left.toFixed(1)}s`;
+
+          requestAnimationFrame(loop);
+        }
+        requestAnimationFrame(loop);
+      });
+
+      recorder.stop();
+      await stopped;
+
+      const blob = new Blob(chunks, { type: mimeType || 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const ext = (mimeType || '').includes('mp4') ? 'mp4' : 'webm';
+      a.download = `current_${vw}x${vh}_${durSec}s.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+
+      hint.textContent = '导出完成 ✓';
+    } catch (err) {
+      console.error(err);
+      hint.textContent = '导出失败：' + (err && err.message ? err.message : err);
+    } finally {
+      paused = false;
+      btnExport.disabled = false;
+      setControlsDisabled(false);
+      last = performance.now();
+      setTimeout(() => {
+        if (hint.textContent === '导出完成 ✓') {
+          hint.textContent = 'WebM 格式 · 导出期间预览暂停';
+        }
+      }, 2500);
+    }
+  }
+
+  btnExport.addEventListener('click', () => exportVideo());
+
+  /* ================= 启动 ================= */
+  resize();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
