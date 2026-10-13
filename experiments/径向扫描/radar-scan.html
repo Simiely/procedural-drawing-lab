@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>雷达扫描 · Radar Scan</title>
+<style>
+  :root{ --acc:#39ff88; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ width:100%; height:100%; overflow:hidden; background:#030504; }
+  #cv{ display:block; position:absolute; inset:0; }
+
+  .panel{
+    position:fixed; top:16px; right:16px; width:272px;
+    max-height:calc(100vh - 32px); overflow-y:auto;
+    padding:14px 16px 16px;
+    background:rgba(8,26,19,.72);
+    -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px);
+    border:1px solid rgba(57,255,136,.20);
+    border-radius:16px;
+    color:#cfe9dc;
+    font:12px/1.4 system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    box-shadow:0 18px 50px rgba(0,0,0,.65);
+    user-select:none;
+    z-index:10;
+  }
+  .head{ margin-bottom:12px; }
+  .head h1{ font-size:13px; font-weight:600; letter-spacing:.06em; color:#eafff4; }
+  .head h1::before{
+    content:""; display:inline-block; width:6px; height:6px; border-radius:50%;
+    background:var(--acc); margin-right:8px; vertical-align:1px;
+    box-shadow:0 0 10px var(--acc);
+  }
+  .head .sub{ margin-top:5px; font-size:10.5px; color:#5f7d6d; line-height:1.5; }
+
+  .section-title{
+    margin:16px 0 10px; padding-top:12px;
+    border-top:1px solid rgba(57,255,136,.12);
+    font-size:11px; color:#6fae90; letter-spacing:.1em; font-weight:600;
+  }
+  .section-title:first-of-type{ border-top:none; margin-top:4px; padding-top:0; }
+
+  .row{ margin-bottom:10px; }
+  .lbl{ display:flex; justify-content:space-between; margin-bottom:5px; color:#7fae96; font-size:11px; }
+  .lbl .val{ color:var(--acc); font-variant-numeric:tabular-nums; font-weight:500; }
+
+  input[type=range]{
+    -webkit-appearance:none; appearance:none;
+    width:100%; height:3px; border-radius:3px;
+    background:rgba(57,255,136,.16); outline:none; cursor:pointer; display:block;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:13px; height:13px; border-radius:50%;
+    background:var(--acc); border:2px solid #05100b;
+    box-shadow:0 0 8px rgba(57,255,136,.75); transition:transform .15s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover{ transform:scale(1.25); }
+  input[type=range]::-moz-range-thumb{
+    width:13px; height:13px; border-radius:50%; background:var(--acc);
+    border:2px solid #05100b; box-shadow:0 0 8px rgba(57,255,136,.75);
+  }
+
+  button{
+    background:rgba(57,255,136,.07); color:#7fae96;
+    border:1px solid rgba(57,255,136,.20); border-radius:8px;
+    padding:7px 10px; font-size:12px; font-family:inherit; cursor:pointer;
+    transition:background .18s, border-color .18s, color .18s;
+  }
+  button:hover{ background:rgba(57,255,136,.14); border-color:rgba(57,255,136,.45); color:#bff5da; }
+  button.active{
+    background:rgba(57,255,136,.20);
+    border-color:var(--acc);
+    color:#eafff4;
+    box-shadow:0 0 14px rgba(57,255,136,.30);
+  }
+
+  .seg{ display:flex; gap:6px; }
+  .seg button{ flex:1; }
+
+  /* 显示开关 / 取色：标签在左，控件在右 */
+  .hrow{ display:flex; align-items:center; justify-content:space-between; }
+  .hrow .stxt{ color:#7fae96; font-size:11px; }
+
+  input[type=checkbox]{
+    appearance:none; -webkit-appearance:none;
+    width:34px; height:18px; border-radius:9px; flex:0 0 auto;
+    background:rgba(57,255,136,.14);
+    position:relative; cursor:pointer; outline:none;
+    transition:background .2s;
+  }
+  input[type=checkbox]::after{
+    content:''; position:absolute; top:2px; left:2px;
+    width:14px; height:14px; border-radius:50%;
+    background:#6fae90; transition:all .2s;
+  }
+  input[type=checkbox]:checked{ background:rgba(57,255,136,.30); }
+  input[type=checkbox]:checked::after{
+    left:18px; background:var(--acc);
+    box-shadow:0 0 8px rgba(57,255,136,.9);
+  }
+
+  input[type=color]{
+    width:34px; height:22px; padding:0; flex:0 0 auto;
+    border:1px solid rgba(57,255,136,.30);
+    border-radius:6px; background:none; cursor:pointer;
+  }
+  input[type=color]::-webkit-color-swatch-wrapper{ padding:2px; }
+  input[type=color]::-webkit-color-swatch{ border:none; border-radius:4px; }
+
+  @media (max-width:640px){
+    .panel{ width:auto; left:12px; right:12px; top:auto; bottom:12px; max-height:52vh; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="cv"></canvas>
+
+<aside class="panel">
+  <div class="head">
+    <h1>雷达扫描 · Radar Scan</h1>
+    <div class="sub">旋转光束扫过圆形区域 · 拖尾 / 方向 / 配色可调</div>
+  </div>
+
+  <div class="section-title">扫描参数</div>
+  <div class="row">
+    <div class="lbl"><span>扫描速度</span><span class="val" id="vSpeed">110°/s</span></div>
+    <input type="range" id="rSpeed" min="5" max="360" step="1" value="110">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>扫描数量</span><span class="val" id="vCount">5</span></div>
+    <input type="range" id="rCount" min="1" max="6" step="1" value="5">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>拖尾长度</span><span class="val" id="vTrail">129°</span></div>
+    <input type="range" id="rTrail" min="10" max="220" step="1" value="129">
+  </div>
+
+  <div class="section-title">扫描方向</div>
+  <div class="row">
+    <div class="seg" id="dirSeg">
+      <button class="active" data-dir="1">顺时针</button>
+      <button data-dir="-1">逆时针</button>
+    </div>
+  </div>
+
+  <div class="section-title">显示</div>
+  <div class="row hrow">
+    <span class="stxt">显示网格</span>
+    <input type="checkbox" id="ckGrid" checked>
+  </div>
+  <div class="row hrow">
+    <span class="stxt">扫描颜色</span>
+    <input type="color" id="cColor" value="#ffffff">
+  </div>
+</aside>
+
+<script>
+(() => {
+  const cv  = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+
+  /* ================= 参数（默认值对齐原稿） ================= */
+  const P = {
+    speed: 110,       // 角速度：度/秒
+    count: 5,         // 同时存在的扫描条数
+    trail: 129,       // 拖尾长度：度
+    dir:   1,         // 1 = 顺时针，-1 = 逆时针
+    grid:  true,      // 是否显示网格
+    color: '#ffffff'  // 扫描色
+  };
+
+  /* ================= 颜色工具 ================= */
+  let rgb = { r: 255, g: 255, b: 255 };
+  function hexToRgb(hex) {
+    let h = hex.replace('#', '');
+    if (h.length === 3) h = h.split('').map(c => c + c).join('');
+    const n = parseInt(h, 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  }
+  rgb = hexToRgb(P.color);
+
+  /* ================= 尺寸（按 devicePixelRatio 适配高分屏） ================= */
+  let W = 0, H = 0;
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth  || document.documentElement.clientWidth  || 800;
+    H = window.innerHeight || document.documentElement.clientHeight || 600;
+    cv.width  = Math.round(W * dpr);
+    cv.height = Math.round(H * dpr);
+    cv.style.width  = W + 'px';
+    cv.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  /* ================= 绘制：网格 ================= */
+  function drawGrid(cx, cy, R) {
+    const { r, g, b } = rgb;
+    ctx.save();
+    ctx.strokeStyle = `rgba(${r},${g},${b},0.10)`;
+    ctx.lineWidth = 1;
+
+    // 同心圆
+    for (let i = 1; i <= 4; i++) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, R * i / 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    // 十字线
+    ctx.beginPath();
+    ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy);
+    ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R);
+    ctx.stroke();
+
+    // 外圈（略亮）
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(${r},${g},${b},0.28)`;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /* ================= 绘制：单条扫描光束 =================
+     head      : 光束头部角度（弧度）
+     trailRad  : 拖尾总弧度
+     dir       : +1 头部角度递增（顺时针），-1 递减
+  ====================================================== */
+  function drawBeam(cx, cy, R, head, trailRad, dir) {
+    const { r, g, b } = rgb;
+    const STEPS = 36;                 // 分段数，越大越平滑
+    const step  = trailRad / STEPS;
+
+    for (let i = 0; i < STEPS; i++) {
+      const t0 = i * step;            // 第 i 段离头部的距离
+      const t1 = (i + 1) * step;
+
+      // 拖尾在头部的「后方」
+      const a0 = head - dir * t0;
+      const a1 = head - dir * t1;
+      const s = Math.min(a0, a1);
+      const e = Math.max(a0, a1);
+
+      // 越靠尾部越透明
+      const fade  = 1 - (i + 0.5) / STEPS;
+      const alpha = Math.pow(fade, 1.8) * 0.5;
+      if (alpha < 0.002) continue;
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, R, s, e, false);
+      ctx.closePath();
+      ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+      ctx.fill();
+    }
+
+    // 头部亮线：最清楚的部分
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(head) * R, cy + Math.sin(head) * R);
+    ctx.strokeStyle = `rgba(${r},${g},${b},0.95)`;
+    ctx.lineWidth = 1.6;
+    ctx.shadowColor = `rgba(${r},${g},${b},0.9)`;
+    ctx.shadowBlur = 12;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /* ================= 主绘制 ================= */
+  let angle = -Math.PI / 2;           // 从 12 点方向开始
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    const cx = W / 2;
+    const cy = H / 2;
+    const R  = Math.min(W, H) * 0.42;
+
+    if (P.grid) drawGrid(cx, cy, R);
+
+    const trailRad = P.trail * Math.PI / 180;
+    const gap = Math.PI * 2 / P.count;
+
+    for (let k = 0; k < P.count; k++) {
+      drawBeam(cx, cy, R, angle + k * gap, trailRad, P.dir);
+    }
+
+    // 中心点
+    const { r, g, b } = rgb;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 2.6, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${r},${g},${b},0.95)`;
+    ctx.shadowColor = `rgba(${r},${g},${b},0.9)`;
+    ctx.shadowBlur = 12;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  /* ================= 动画循环 ================= */
+  let last = performance.now();
+
+  function loop(now) {
+    const dt = Math.min((now - last) / 1000, 0.05);  // 限制单帧步长，防止切后台后跳变
+    last = now;
+
+    angle += P.dir * P.speed * Math.PI / 180 * dt;
+    const TAU = Math.PI * 2;
+    angle = ((angle % TAU) + TAU) % TAU;             // 归一化，避免数值无限增长
+
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  /* ================= 控件绑定 ================= */
+  const $ = id => document.getElementById(id);
+
+  $('rSpeed').addEventListener('input', e => {
+    P.speed = +e.target.value;
+    $('vSpeed').textContent = P.speed + '°/s';
+  });
+
+  $('rCount').addEventListener('input', e => {
+    P.count = +e.target.value;
+    $('vCount').textContent = P.count;
+  });
+
+  $('rTrail').addEventListener('input', e => {
+    P.trail = +e.target.value;
+    $('vTrail').textContent = P.trail + '°';
+  });
+
+  $('ckGrid').addEventListener('change', e => {
+    P.grid = e.target.checked;
+  });
+
+  $('cColor').addEventListener('input', e => {
+    P.color = e.target.value;
+    rgb = hexToRgb(P.color);
+  });
+
+  document.querySelectorAll('#dirSeg button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#dirSeg button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      P.dir = +btn.dataset.dir;
+    });
+  });
+
+  let rt;
+  window.addEventListener('resize', () => {
+    clearTimeout(rt);
+    rt = setTimeout(resize, 150);
+  });
+
+  /* ================= 启动 ================= */
+  resize();
+  draw();                             // 先画一帧，避免首帧空白
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

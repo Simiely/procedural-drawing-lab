@@ -31,6 +31,7 @@
 | ![电流](screenshots/electric-current.png) | [电流 Electric Current](experiments/粒子动势/electric-current.html) | 粒子动势 | 折线轨迹拖出电弧丝线，锯齿可调，支持向上 / 向右两种流向，**可导出视频** | 数量 / 速度 / 长度 / 粗细 / 折线 / 发光 / 方向 + 导出分辨率·时长 |
 | ![星芒](screenshots/star-spikes.png) | [星芒 Star Spikes](experiments/几何生成/star-spikes.html) | 几何生成 | 参数化星芒：尖角可旋转分布，内凹成芒 | 尖角数 / 中心圆半径 / 尖角长度 / 基部半角 / 内凹程度 / 颜色 |
 | ![雪花](screenshots/snowflake.png) | [雪花 Snowflake](experiments/几何生成/snowflake.html) | 几何生成 | 参数化雪花：分形分支 + 尖端 V 形，旋转复制对称 | 对称臂数 / 主臂与分支长度 / 张开角度 / 递减比例 / 尖端 V 形 |
+| ![雷达扫描](screenshots/radar-scan.png) | [雷达扫描 Radar Scan](experiments/径向扫描/radar-scan.html) | 径向扫描 | 多条光束自圆心同时旋转扫过圆形区域，拖尾呈扇形渐隐 | 扫描速度 / 扫描数量 / 拖尾长度 / 顺·逆时针 / 网格 / 扫描颜色 |
 
 ## 目录规范（新增实验前必读）
 
@@ -39,6 +40,7 @@ experiments/
   _template/        # 新实验的复制骨架
   粒子动势/          # 粒子、湍流、流动类效果
   几何生成/          # 参数化几何图形、星芒、分形图案
+  径向扫描/          # 旋转光束、雷达扫描类径向动效
   ...               # 新分类按需长出来（请登记到 AGENTS.md 目录表）
 screenshots/        # 每个实验对应一张真实截图（<实验英文名>.png）
 ```
