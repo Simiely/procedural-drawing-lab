@@ -175,7 +175,7 @@
 <aside class="panel">
   <div class="panel-head">
     <h1>多光束扫描 · Multi Beam</h1>
-    <p>线性扫描 · 多光束叠加 · 视频导出</p>
+    <p>线性扫描 · 多光束叠加 · 黑线纹理 · 视频导出</p>
   </div>
 
   <div id="controls"></div>
@@ -183,7 +183,7 @@
   <!-- ===== 导出视频 ===== -->
   <div class="export-section">
     <button id="btn-export-toggle" class="btn export-toggle">导出视频</button>
-    <div class="export-body" id="export-body">
+    <div class="export-body open" id="export-body">
       <div class="ctrl">
         <div class="ctrl-head">
           <span class="ctrl-label">导出时长</span>
@@ -246,6 +246,9 @@
     { key: 'trailLength', label: '拖尾长度',   min: 40,  max: 900, step: 10,   value: 40 },
     { key: 'trailCurve',  label: '拖尾衰减',   min: 0.4, max: 4,   step: 0.05, value: 2.40 },
     { key: 'feather',     label: '右侧羽化',   min: 0,   max: 400, step: 5,    value: 15 },
+    { key: 'blSpacing',   label: '黑线间距',   min: 5,   max: 300, step: 5,    value: 15 },
+    { key: 'blWidth',     label: '黑线粗细',   min: 0,   max: 40,  step: 1,    value: 1 },
+    { key: 'blFeather',   label: '黑线羽化',   min: 0,   max: 40,  step: 1,    value: 0 },
     { key: 'lineWidth',   label: '光线粗细',   min: 0.5, max: 8,   step: 0.5,  value: 3.00 },
     { key: 'beamGlow',    label: '光束辉光',   min: 0,   max: 2,   step: 0.05, value: 1.05 },
     { key: 'hue',         label: '主色调',     min: 0,   max: 360, step: 1,    value: 185 }
@@ -455,6 +458,61 @@
     c.restore();
   }
 
+  /* ==================== 绘制：核心内黑色竖纹（覆盖在实心区之上） ==================== */
+  function drawBlackLines(c, bx, W, H, p) {
+    const spacing = p.blSpacing;
+    const width   = p.blWidth;
+    const feather = p.blFeather;
+
+    if (spacing <= 0 || width <= 0) return;
+
+    const core = p.coreLength;
+    if (core <= 0) return;
+
+    const xR = bx;          // 实心区右边缘（核心亮线处）
+    const xL = bx - core;   // 实心区左边缘
+
+    if (xR <= 0 || xL >= W) return;
+
+    const a0 = Math.max(0, xL);
+    const a1 = Math.min(W, xR);
+
+    c.save();
+    c.globalCompositeOperation = 'source-over';
+    c.beginPath();
+    c.rect(a0, 0, a1 - a0, H);
+    c.clip();
+
+    let count = 0;
+    const start = Math.ceil(a0 / spacing) * spacing;
+
+    if (feather > 0) {
+      /* 软边羽化：每条黑线两侧用渐变淡入淡出 */
+      const f = feather;
+      for (let x = start; x < a1 && count < 260; x += spacing) {
+        count++;
+        const total = width + 2 * f;
+        const peak = f / total;
+        const g = c.createLinearGradient(x - f, 0, x + width + f, 0);
+        g.addColorStop(0,        'rgba(2, 4, 8, 0)');
+        g.addColorStop(peak,     'rgba(2, 4, 8, 0.92)');
+        g.addColorStop(1 - peak, 'rgba(2, 4, 8, 0.92)');
+        g.addColorStop(1,        'rgba(2, 4, 8, 0)');
+        c.fillStyle = g;
+        c.fillRect(x - f, 0, total, H);
+      }
+    } else {
+      /* 硬边黑线 */
+      c.fillStyle = 'rgba(2, 4, 8, 0.92)';
+      for (let x = start; x < a1 && count < 260; x += spacing) {
+        count++;
+        c.fillRect(x, 0, width, H);
+      }
+    }
+
+    c.restore();
+  }
+
   /* ==================== 渲染场景（复用于显示与导出） ==================== */
   function renderScene(c, state, W, H, p) {
     /* ---- 背景 ---- */
@@ -480,6 +538,7 @@
       drawCoreSolid(c, bx, W, H, p);
       drawFeather(c, bx, W, H, p);
       drawCoreLine(c, bx, W, H, p);
+      drawBlackLines(c, bx, W, H, p);
     }
 
     /* ---- 边框 ---- */
