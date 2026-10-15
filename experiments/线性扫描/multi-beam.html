@@ -103,7 +103,6 @@
     height: 3px; background: rgba(120, 200, 255, 0.14); border-radius: 2px;
   }
 
-  /* ---- Select ---- */
   select {
     width: 100%; padding: 8px 10px;
     background: rgba(120, 200, 255, 0.06);
@@ -121,7 +120,6 @@
   select:focus { border-color: var(--accent); box-shadow: 0 0 8px rgba(78, 225, 255, 0.25); }
   select option { background: #080b11; color: #cfe2f2; }
 
-  /* ---- 通用按钮 ---- */
   .btn {
     display: block; width: 100%; padding: 9px 6px;
     font-family: inherit; font-size: 10.5px; letter-spacing: 0.16em;
@@ -142,7 +140,6 @@
     background: #7aebff; color: #041018; box-shadow: 0 0 26px rgba(78, 225, 255, 0.6);
   }
 
-  /* ---- 导出区域 ---- */
   .export-section { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
   .export-toggle { position: relative; }
   .export-toggle::before {
@@ -190,9 +187,9 @@
       <div class="ctrl">
         <div class="ctrl-head">
           <span class="ctrl-label">导出时长</span>
-          <span class="ctrl-val" id="exp-dur-val">5s</span>
+          <span class="ctrl-val" id="exp-dur-val">8s</span>
         </div>
-        <input type="range" id="exp-dur" min="1" max="30" step="1" value="5">
+        <input type="range" id="exp-dur" min="1" max="30" step="1" value="8">
       </div>
 
       <div class="ctrl">
@@ -245,9 +242,10 @@
   const config = [
     { key: 'speed',       label: '扫描速度',   min: 0.2, max: 8,   step: 0.1,  value: 1.60 },
     { key: 'cycleTime',   label: '循环时长',   min: 0.2, max: 8,   step: 0.1,  value: 0.50, unit: 's' },
-    { key: 'trailLength', label: '拖尾长度',   min: 40,  max: 900, step: 10,   value: 470 },
+    { key: 'coreLength',  label: '中间长度',   min: 0,   max: 500, step: 5,    value: 205 },
+    { key: 'trailLength', label: '拖尾长度',   min: 40,  max: 900, step: 10,   value: 40 },
     { key: 'trailCurve',  label: '拖尾衰减',   min: 0.4, max: 4,   step: 0.05, value: 2.40 },
-    { key: 'feather',     label: '右侧羽化',   min: 0,   max: 400, step: 5,    value: 105 },
+    { key: 'feather',     label: '右侧羽化',   min: 0,   max: 400, step: 5,    value: 15 },
     { key: 'lineWidth',   label: '光线粗细',   min: 0.5, max: 8,   step: 0.5,  value: 3.00 },
     { key: 'beamGlow',    label: '光束辉光',   min: 0,   max: 2,   step: 0.05, value: 1.05 },
     { key: 'hue',         label: '主色调',     min: 0,   max: 360, step: 1,    value: 185 }
@@ -324,19 +322,21 @@
     return { beams: [], spawnTimer: 0 };
   }
 
-  function resetState(state, p) {
+  function resetState(state) {
     state.beams = [];
     state.spawnTimer = 0;
-    state.beams.push({ x: 0 });
+    // 初始光束放在视野内，保证一开始就有可见的光束
+    state.beams.push({ x: 100 });
   }
 
   /* ==================== 更新逻辑 ==================== */
-  function updateState(state, dt, W, H, p, sc) {
+  function updateState(state, dt, W, H, p) {
     const dtSec = dt / 60;
-    const trail = p.trailLength * sc;
+    const trail = p.trailLength;
+    const core  = p.coreLength;
     const cycle = Math.max(0.05, p.cycleTime);
 
-    /* ---- 生成新光束（允许旧光束未扫完时叠加） ---- */
+    /* ---- 生成新光束（旧光束未扫完也可叠加） ---- */
     state.spawnTimer += dtSec;
 
     let guard = 0;
@@ -344,32 +344,34 @@
       state.spawnTimer -= cycle;
       guard++;
       if (state.beams.length < MAX_BEAMS) {
-        state.beams.push({ x: -trail * 0.5 });
+        state.beams.push({ x: 0 });
       }
     }
     if (guard >= 4) state.spawnTimer = 0;
 
     /* ---- 移动 ---- */
-    const move = p.speed * 5 * dt * sc;
+    const move = p.speed * 5 * dt;
     for (let i = 0; i < state.beams.length; i++) {
       state.beams[i].x += move;
     }
 
     /* ---- 回收完全移出右侧的光束 ---- */
     const kill = W + 60;
+    const back = trail + core;
     if (state.beams.length) {
-      state.beams = state.beams.filter(b => b.x - trail <= kill);
+      state.beams = state.beams.filter(b => b.x - back <= kill);
     }
   }
 
-  /* ==================== 绘制：左侧拖尾 ==================== */
-  function drawTrail(c, bx, W, H, p, sc) {
+  /* ==================== 绘制：左侧拖尾（渐变） ==================== */
+  function drawTrail(c, bx, W, H, p) {
     const hue   = p.hue;
     const glow  = p.beamGlow;
-    const trail = p.trailLength * sc;
+    const trail = p.trailLength;
+    const core  = p.coreLength;
 
-    const xR = bx;
-    const xL = bx - trail;
+    const xR = bx - core;
+    const xL = xR - trail;
 
     if (xR <= 0 || xL >= W) return;
 
@@ -387,11 +389,31 @@
     c.fillRect(a0, 0, a1 - a0, H);
   }
 
-  /* ==================== 绘制：右侧羽化 ==================== */
-  function drawFeather(c, bx, W, H, p, sc) {
+  /* ==================== 绘制：中间实心区（不渐变） ==================== */
+  function drawCoreSolid(c, bx, W, H, p) {
+    const hue  = p.hue;
+    const glow = p.beamGlow;
+    const core = p.coreLength;
+
+    if (core <= 0) return;
+
+    const xR = bx;
+    const xL = bx - core;
+
+    if (xR <= 0 || xL >= W) return;
+
+    const a = Math.min(1, 0.62 * glow);
+    const a0 = Math.max(0, xL);
+    const a1 = Math.min(W, xR);
+    c.fillStyle = `hsla(${hue}, 100%, 60%, ${a.toFixed(4)})`;
+    c.fillRect(a0, 0, a1 - a0, H);
+  }
+
+  /* ==================== 绘制：右侧羽化（渐变） ==================== */
+  function drawFeather(c, bx, W, H, p) {
     const hue     = p.hue;
     const glow    = p.beamGlow;
-    const feather = p.feather * sc;
+    const feather = p.feather;
 
     if (feather <= 0) return;
 
@@ -404,8 +426,8 @@
     const steps = 16;
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
-      const a = Math.pow(1 - t, 2.4) * 0.55 * glow;
-      g.addColorStop(t, `hsla(${hue}, 100%, 65%, ${a.toFixed(4)})`);
+      const a = Math.pow(1 - t, 2.4) * 0.62 * glow;
+      g.addColorStop(t, `hsla(${hue}, 100%, 65%, ${Math.min(1, a).toFixed(4)})`);
     }
 
     const a0 = Math.max(0, xL);
@@ -414,8 +436,8 @@
     c.fillRect(a0, 0, a1 - a0, H);
   }
 
-  /* ==================== 绘制：核心亮线（硬边 + 辉光） ==================== */
-  function drawCore(c, bx, W, H, p, sc) {
+  /* ==================== 绘制：核心亮线 ==================== */
+  function drawCoreLine(c, bx, W, H, p) {
     const hue  = p.hue;
     const glow = p.beamGlow;
 
@@ -425,7 +447,7 @@
     c.shadowBlur  = 46 * glow + 4;
     c.shadowColor = `hsla(${hue}, 100%, 62%, ${Math.min(1, 0.95 * glow)})`;
     c.strokeStyle = `hsla(${hue}, 100%, 94%, 0.98)`;
-    c.lineWidth   = p.lineWidth * sc;
+    c.lineWidth   = p.lineWidth;
     c.beginPath();
     c.moveTo(bx, 0);
     c.lineTo(bx, H);
@@ -433,8 +455,8 @@
     c.restore();
   }
 
-  /* ==================== 渲染场景（可复用于显示与导出） ==================== */
-  function renderScene(c, state, W, H, p, sc) {
+  /* ==================== 渲染场景（复用于显示与导出） ==================== */
+  function renderScene(c, state, W, H, p) {
     /* ---- 背景 ---- */
     c.globalCompositeOperation = 'source-over';
     c.globalAlpha = 1;
@@ -454,15 +476,16 @@
     c.globalCompositeOperation = 'lighter';
     for (let i = 0; i < state.beams.length; i++) {
       const bx = state.beams[i].x;
-      drawTrail(c, bx, W, H, p, sc);
-      drawFeather(c, bx, W, H, p, sc);
-      drawCore(c, bx, W, H, p, sc);
+      drawTrail(c, bx, W, H, p);
+      drawCoreSolid(c, bx, W, H, p);
+      drawFeather(c, bx, W, H, p);
+      drawCoreLine(c, bx, W, H, p);
     }
 
     /* ---- 边框 ---- */
     c.globalCompositeOperation = 'source-over';
     c.strokeStyle = `hsla(${p.hue}, 80%, 62%, 0.22)`;
-    c.lineWidth = Math.max(1, sc);
+    c.lineWidth = 1;
     c.strokeRect(0.5, 0.5, W - 1, H - 1);
   }
 
@@ -488,10 +511,10 @@
       }
     }
 
-    if (!paused) updateState(mainState, dt, W, H, params, 1);
+    if (!paused) updateState(mainState, dt, W, H, params);
 
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    renderScene(ctx, mainState, W, H, params, 1);
+    renderScene(ctx, mainState, W, H, params);
 
     infoEl.textContent = 'BEAMS ' + String(mainState.beams.length).padStart(2, '0');
 
@@ -555,14 +578,29 @@
 
     const octx = off.getContext('2d', { alpha: false });
 
-    /* ---- 尺寸缩放：让导出画面与当前显示比例一致 ---- */
-    const displayMin = Math.max(1, Math.min(W, H));
-    const exportMin  = Math.min(ew, eh);
-    const sc = exportMin / displayMin;
+    /* ---- 缩放与居中：保证导出画幅与显示比例一致 ---- */
+    const sc = Math.min(ew, eh) / Math.min(W, H);
+    const rw = W * sc;
+    const rh = H * sc;
+    const ox = (ew - rw) / 2;
+    const oy = (eh - rh) / 2;
 
-    /* ---- 独立状态，从左侧起始 ---- */
+    function paintFrame(state) {
+      octx.setTransform(1, 0, 0, 1, 0, 0);
+      octx.fillStyle = '#04060b';
+      octx.fillRect(0, 0, ew, eh);
+
+      octx.translate(ox, oy);
+      octx.scale(sc, sc);
+
+      renderScene(octx, state, W, H, params);
+
+      octx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+
+    /* ---- 独立状态，从头开始 ---- */
     const state = createState();
-    resetState(state, params);
+    resetState(state);
 
     /* ---- 录制（保持标签页在前台，否则 rAF 被节流丢帧） ---- */
     const stream = off.captureStream(60);
@@ -612,8 +650,7 @@
       };
 
       /* 先渲染一帧，避免流起始为空白 */
-      octx.setTransform(1, 0, 0, 1, 0, 0);
-      renderScene(octx, state, ew, eh, params, sc);
+      paintFrame(state);
 
       recorder.start(100);
 
@@ -629,10 +666,8 @@
         if (dt < 0.001) dt = 0.001;
         if (dt > 3) dt = 3;
 
-        updateState(state, dt, ew, eh, params, sc);
-
-        octx.setTransform(1, 0, 0, 1, 0, 0);
-        renderScene(octx, state, ew, eh, params, sc);
+        updateState(state, dt, W, H, params);
+        paintFrame(state);
 
         const prog = Math.min(1, elapsed / totalMs);
         exportStatus.textContent =
@@ -641,12 +676,9 @@
         if (elapsed < totalMs) {
           requestAnimationFrame(frame);
         } else {
-          /* 末帧推流后再停，避免循环回接处多一截静止画面 */
-          const track = stream.getVideoTracks()[0];
-          if (track && track.requestFrame) track.requestFrame();
           setTimeout(() => {
             try { recorder.stop(); } catch (e) { /* ignore */ }
-          }, 60);
+          }, 120);
         }
       }
 
@@ -694,7 +726,7 @@
         ref.val.textContent = ref.fmt(defaults[k]);
       }
     });
-    resetState(mainState, params);
+    resetState(mainState);
   });
 
   window.addEventListener('keydown', e => {
@@ -712,7 +744,7 @@
 
   /* ==================== 启动 ==================== */
   resize();
-  resetState(mainState, params);
+  resetState(mainState);
   requestAnimationFrame(loop);
 
 })();
