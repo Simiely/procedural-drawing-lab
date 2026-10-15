@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>多光束扫描 · Multi Beam</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --accent: #4ee1ff;
+    --panel-bg: #080b11;
+    --line: rgba(120, 200, 255, 0.12);
+  }
+
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    background: #03050a;
+    color: #b9c8d8;
+    font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+
+  canvas { position: absolute; inset: 0; display: block; }
+
+  .hud {
+    position: fixed; left: 0; right: 0; bottom: 10px;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 18px;
+    font-size: 10px; letter-spacing: 0.18em;
+    color: rgba(120, 200, 255, 0.45);
+    pointer-events: none; z-index: 10;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  .panel {
+    position: fixed; top: 16px; right: 16px; width: 272px;
+    max-height: calc(100vh - 32px); overflow-y: auto; overflow-x: hidden;
+    padding: 16px 16px 18px;
+    background: rgba(8, 14, 22, .72);
+    -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+    border: 1px solid rgba(78, 225, 255, .20);
+    border-radius: 16px;
+    color: #c4d8e6;
+    font: 12px/1.4 system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, .65);
+    user-select: none; z-index: 10;
+  }
+  .panel::-webkit-scrollbar { width: 6px; }
+  .panel::-webkit-scrollbar-thumb { background: rgba(78, 225, 255, .22); border-radius: 3px; }
+
+  .panel-head {
+    padding-bottom: 14px; margin-bottom: 16px;
+    border-bottom: 1px solid var(--line); position: relative;
+  }
+  .panel-head::after {
+    content: ""; position: absolute; left: 0; bottom: -1px;
+    width: 44px; height: 1px; background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+  }
+  .panel-head h1 {
+    font-size: 13px; font-weight: 600; letter-spacing: 0.22em; color: #dff2ff;
+  }
+  .panel-head p {
+    margin-top: 5px; font-size: 10px; letter-spacing: 0.16em;
+    color: rgba(120, 170, 210, 0.5);
+  }
+
+  .ctrl { margin-bottom: 15px; }
+
+  .ctrl-head {
+    display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px;
+  }
+  .ctrl-label {
+    font-size: 10.5px; letter-spacing: 0.14em; color: rgba(175, 200, 225, 0.85);
+  }
+  .ctrl-val {
+    font-size: 10.5px; color: var(--accent);
+    text-shadow: 0 0 8px rgba(78, 225, 255, 0.55);
+    font-variant-numeric: tabular-nums;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 3px;
+    background: rgba(120, 200, 255, 0.14); border-radius: 2px;
+    outline: none; cursor: pointer; display: block;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 11px; height: 11px; background: var(--accent); border-radius: 1px;
+    box-shadow: 0 0 9px rgba(78, 225, 255, 0.85);
+    transition: transform 0.12s ease;
+  }
+  input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.25); }
+  input[type="range"]::-moz-range-thumb {
+    width: 11px; height: 11px; background: var(--accent); border: none; border-radius: 1px;
+    box-shadow: 0 0 9px rgba(78, 225, 255, 0.85);
+  }
+  input[type="range"]::-moz-range-track {
+    height: 3px; background: rgba(120, 200, 255, 0.14); border-radius: 2px;
+  }
+
+  /* ---- Select ---- */
+  select {
+    width: 100%; padding: 8px 10px;
+    background: rgba(120, 200, 255, 0.06);
+    border: 1px solid var(--line); border-radius: 2px;
+    color: #cfe2f2; font-family: inherit; font-size: 11px; letter-spacing: 0.08em;
+    cursor: pointer; outline: none;
+    appearance: none; -webkit-appearance: none;
+    background-image:
+      linear-gradient(45deg, transparent 50%, rgba(120, 200, 255, 0.6) 50%),
+      linear-gradient(135deg, rgba(120, 200, 255, 0.6) 50%, transparent 50%);
+    background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%;
+    background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+  }
+  select:hover { border-color: rgba(120, 200, 255, 0.3); background-color: rgba(120, 200, 255, 0.10); }
+  select:focus { border-color: var(--accent); box-shadow: 0 0 8px rgba(78, 225, 255, 0.25); }
+  select option { background: #080b11; color: #cfe2f2; }
+
+  /* ---- 通用按钮 ---- */
+  .btn {
+    display: block; width: 100%; padding: 9px 6px;
+    font-family: inherit; font-size: 10.5px; letter-spacing: 0.16em;
+    color: rgba(160, 190, 215, 0.8);
+    background: rgba(120, 200, 255, 0.05);
+    border: 1px solid var(--line); border-radius: 2px;
+    cursor: pointer; transition: all 0.16s ease;
+  }
+  .btn:hover:not(:disabled) {
+    background: rgba(120, 200, 255, 0.12); color: #dff2ff; border-color: rgba(120, 200, 255, 0.3);
+  }
+  .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  .btn-accent {
+    color: #041018; background: var(--accent); border-color: var(--accent);
+    box-shadow: 0 0 18px rgba(78, 225, 255, 0.35); font-weight: 600;
+  }
+  .btn-accent:hover:not(:disabled) {
+    background: #7aebff; color: #041018; box-shadow: 0 0 26px rgba(78, 225, 255, 0.6);
+  }
+
+  /* ---- 导出区域 ---- */
+  .export-section { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .export-toggle { position: relative; }
+  .export-toggle::before {
+    content: ""; position: absolute; left: 12px; top: 50%;
+    width: 5px; height: 5px; margin-top: -2.5px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 7px var(--accent);
+  }
+  .export-body { margin-top: 16px; display: none; }
+  .export-body.open { display: block; }
+  .export-note {
+    font-size: 9.5px; letter-spacing: 0.1em; color: rgba(120, 160, 195, 0.5);
+    margin-top: 10px; line-height: 1.65;
+  }
+  .export-status {
+    margin-top: 10px; font-size: 10px; letter-spacing: 0.1em; color: var(--accent);
+    min-height: 14px; text-shadow: 0 0 8px rgba(78, 225, 255, 0.4);
+  }
+
+  .actions {
+    display: flex; gap: 8px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line);
+  }
+  .actions .btn { flex: 1; }
+
+  @media (max-width: 640px) {
+    .panel { width: auto; left: 12px; right: 12px; top: auto; bottom: 12px; max-height: 52vh; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="cv"></canvas>
+
+<aside class="panel">
+  <div class="panel-head">
+    <h1>多光束扫描 · Multi Beam</h1>
+    <p>线性扫描 · 多光束叠加 · 视频导出</p>
+  </div>
+
+  <div id="controls"></div>
+
+  <!-- ===== 导出视频 ===== -->
+  <div class="export-section">
+    <button id="btn-export-toggle" class="btn export-toggle">导出视频</button>
+    <div class="export-body" id="export-body">
+      <div class="ctrl">
+        <div class="ctrl-head">
+          <span class="ctrl-label">导出时长</span>
+          <span class="ctrl-val" id="exp-dur-val">5s</span>
+        </div>
+        <input type="range" id="exp-dur" min="1" max="30" step="1" value="5">
+      </div>
+
+      <div class="ctrl">
+        <div class="ctrl-head">
+          <span class="ctrl-label">分辨率</span>
+          <span class="ctrl-val" id="exp-res-val">1080 × 1080</span>
+        </div>
+        <select id="exp-res">
+          <option value="720x720">720 × 720</option>
+          <option value="1080x1080" selected>1080 × 1080</option>
+          <option value="1080x1920">1080 × 1920 · 竖屏</option>
+          <option value="1920x1080">1920 × 1080 · 横屏</option>
+          <option value="2160x2160">2160 × 2160 · 4K</option>
+        </select>
+      </div>
+
+      <button id="btn-export-start" class="btn btn-accent">开始导出</button>
+      <div class="export-status" id="export-status"></div>
+      <div class="export-note">
+        导出格式为 WebM（VP9），分辨率越高、时长越长，生成时间越久。导出过程中可继续操作界面。
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="btn-pause" class="btn">暂停</button>
+    <button id="btn-reset" class="btn">重置</button>
+  </div>
+</aside>
+
+<div class="hud">
+  <span id="hud-info">BEAMS 00</span>
+  <span id="hud-fps">— FPS</span>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ==================== 基础引用 ==================== */
+  const cv      = document.getElementById('cv');
+  const ctx     = cv.getContext('2d');
+  const panelEl = document.getElementById('controls');
+  const fpsEl   = document.getElementById('hud-fps');
+  const infoEl  = document.getElementById('hud-info');
+
+  let W = 600, H = 600, DPR = 1;
+
+  /* ==================== 参数默认值 ==================== */
+  const config = [
+    { key: 'speed',       label: '扫描速度',   min: 0.2, max: 8,   step: 0.1,  value: 1.60 },
+    { key: 'cycleTime',   label: '循环时长',   min: 0.2, max: 8,   step: 0.1,  value: 0.50, unit: 's' },
+    { key: 'trailLength', label: '拖尾长度',   min: 40,  max: 900, step: 10,   value: 470 },
+    { key: 'trailCurve',  label: '拖尾衰减',   min: 0.4, max: 4,   step: 0.05, value: 2.40 },
+    { key: 'feather',     label: '右侧羽化',   min: 0,   max: 400, step: 5,    value: 105 },
+    { key: 'lineWidth',   label: '光线粗细',   min: 0.5, max: 8,   step: 0.5,  value: 3.00 },
+    { key: 'beamGlow',    label: '光束辉光',   min: 0,   max: 2,   step: 0.05, value: 1.05 },
+    { key: 'hue',         label: '主色调',     min: 0,   max: 360, step: 1,    value: 185 }
+  ];
+
+  const params   = {};
+  const defaults = {};
+  const inputs   = {};
+
+  /* ==================== 状态 ==================== */
+  const MAX_BEAMS = 32;
+
+  const mainState = { beams: [], spawnTimer: 0 };
+  let paused = false;
+
+  /* ==================== 构建 UI ==================== */
+  config.forEach(c => {
+    params[c.key] = c.value;
+    defaults[c.key] = c.value;
+
+    const fmt = v => {
+      const s = c.step >= 1 ? v.toFixed(0) : v.toFixed(2);
+      return c.unit ? s + c.unit : s;
+    };
+
+    const row = document.createElement('div');
+    row.className = 'ctrl';
+
+    const head = document.createElement('div');
+    head.className = 'ctrl-head';
+
+    const lab = document.createElement('span');
+    lab.className = 'ctrl-label';
+    lab.textContent = c.label;
+
+    const val = document.createElement('span');
+    val.className = 'ctrl-val';
+    val.textContent = fmt(c.value);
+
+    head.append(lab, val);
+
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.min = c.min;
+    input.max = c.max;
+    input.step = c.step;
+    input.value = c.value;
+
+    input.addEventListener('input', () => {
+      const v = parseFloat(input.value);
+      params[c.key] = v;
+      val.textContent = fmt(v);
+    });
+
+    inputs[c.key] = { input, val, fmt };
+    row.append(head, input);
+    panelEl.appendChild(row);
+  });
+
+  /* ==================== 尺寸（按 devicePixelRatio 适配高分屏） ==================== */
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth  || document.documentElement.clientWidth  || 800;
+    H = window.innerHeight || document.documentElement.clientHeight || 600;
+    cv.width  = Math.round(W * dpr);
+    cv.height = Math.round(H * dpr);
+    cv.style.width  = W + 'px';
+    cv.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  /* ==================== 状态工厂 ==================== */
+  function createState() {
+    return { beams: [], spawnTimer: 0 };
+  }
+
+  function resetState(state, p) {
+    state.beams = [];
+    state.spawnTimer = 0;
+    state.beams.push({ x: 0 });
+  }
+
+  /* ==================== 更新逻辑 ==================== */
+  function updateState(state, dt, W, H, p, sc) {
+    const dtSec = dt / 60;
+    const trail = p.trailLength * sc;
+    const cycle = Math.max(0.05, p.cycleTime);
+
+    /* ---- 生成新光束（允许旧光束未扫完时叠加） ---- */
+    state.spawnTimer += dtSec;
+
+    let guard = 0;
+    while (state.spawnTimer >= cycle && guard < 4) {
+      state.spawnTimer -= cycle;
+      guard++;
+      if (state.beams.length < MAX_BEAMS) {
+        state.beams.push({ x: -trail * 0.5 });
+      }
+    }
+    if (guard >= 4) state.spawnTimer = 0;
+
+    /* ---- 移动 ---- */
+    const move = p.speed * 5 * dt * sc;
+    for (let i = 0; i < state.beams.length; i++) {
+      state.beams[i].x += move;
+    }
+
+    /* ---- 回收完全移出右侧的光束 ---- */
+    const kill = W + 60;
+    if (state.beams.length) {
+      state.beams = state.beams.filter(b => b.x - trail <= kill);
+    }
+  }
+
+  /* ==================== 绘制：左侧拖尾 ==================== */
+  function drawTrail(c, bx, W, H, p, sc) {
+    const hue   = p.hue;
+    const glow  = p.beamGlow;
+    const trail = p.trailLength * sc;
+
+    const xR = bx;
+    const xL = bx - trail;
+
+    if (xR <= 0 || xL >= W) return;
+
+    const g = c.createLinearGradient(xL, 0, xR, 0);
+    const steps = 20;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const a = Math.pow(t, p.trailCurve) * 0.62 * glow;
+      g.addColorStop(t, `hsla(${hue}, 100%, 60%, ${a.toFixed(4)})`);
+    }
+
+    const a0 = Math.max(0, xL);
+    const a1 = Math.min(W, xR);
+    c.fillStyle = g;
+    c.fillRect(a0, 0, a1 - a0, H);
+  }
+
+  /* ==================== 绘制：右侧羽化 ==================== */
+  function drawFeather(c, bx, W, H, p, sc) {
+    const hue     = p.hue;
+    const glow    = p.beamGlow;
+    const feather = p.feather * sc;
+
+    if (feather <= 0) return;
+
+    const xL = bx;
+    const xR = bx + feather;
+
+    if (xR <= 0 || xL >= W) return;
+
+    const g = c.createLinearGradient(xL, 0, xR, 0);
+    const steps = 16;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const a = Math.pow(1 - t, 2.4) * 0.55 * glow;
+      g.addColorStop(t, `hsla(${hue}, 100%, 65%, ${a.toFixed(4)})`);
+    }
+
+    const a0 = Math.max(0, xL);
+    const a1 = Math.min(W, xR);
+    c.fillStyle = g;
+    c.fillRect(a0, 0, a1 - a0, H);
+  }
+
+  /* ==================== 绘制：核心亮线（硬边 + 辉光） ==================== */
+  function drawCore(c, bx, W, H, p, sc) {
+    const hue  = p.hue;
+    const glow = p.beamGlow;
+
+    if (bx < -24 || bx > W + 24) return;
+
+    c.save();
+    c.shadowBlur  = 46 * glow + 4;
+    c.shadowColor = `hsla(${hue}, 100%, 62%, ${Math.min(1, 0.95 * glow)})`;
+    c.strokeStyle = `hsla(${hue}, 100%, 94%, 0.98)`;
+    c.lineWidth   = p.lineWidth * sc;
+    c.beginPath();
+    c.moveTo(bx, 0);
+    c.lineTo(bx, H);
+    c.stroke();
+    c.restore();
+  }
+
+  /* ==================== 渲染场景（可复用于显示与导出） ==================== */
+  function renderScene(c, state, W, H, p, sc) {
+    /* ---- 背景 ---- */
+    c.globalCompositeOperation = 'source-over';
+    c.globalAlpha = 1;
+    c.fillStyle = '#04060b';
+    c.fillRect(0, 0, W, H);
+
+    /* ---- 中心氛围微光 ---- */
+    const cx = W / 2, cy = H / 2;
+    const r  = Math.min(W, H) * 0.62;
+    const rg = c.createRadialGradient(cx, cy, 0, cx, cy, r);
+    rg.addColorStop(0, `hsla(${p.hue}, 70%, 52%, 0.055)`);
+    rg.addColorStop(1, 'hsla(0, 0%, 0%, 0)');
+    c.fillStyle = rg;
+    c.fillRect(0, 0, W, H);
+
+    /* ---- 光束（叠加混合） ---- */
+    c.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < state.beams.length; i++) {
+      const bx = state.beams[i].x;
+      drawTrail(c, bx, W, H, p, sc);
+      drawFeather(c, bx, W, H, p, sc);
+      drawCore(c, bx, W, H, p, sc);
+    }
+
+    /* ---- 边框 ---- */
+    c.globalCompositeOperation = 'source-over';
+    c.strokeStyle = `hsla(${p.hue}, 80%, 62%, 0.22)`;
+    c.lineWidth = Math.max(1, sc);
+    c.strokeRect(0.5, 0.5, W - 1, H - 1);
+  }
+
+  /* ==================== 主循环 ==================== */
+  let lastT = performance.now();
+  let fpsAcc = 0, fpsCount = 0;
+
+  function loop(now) {
+    const raw = now - lastT;
+    lastT = now;
+
+    let dt = raw / 16.6667;
+    if (dt < 0.001) dt = 0.001;
+    if (dt > 3) dt = 3;
+
+    if (raw > 0) {
+      fpsAcc += 1000 / raw;
+      fpsCount++;
+      if (fpsCount >= 24) {
+        fpsEl.textContent = Math.round(fpsAcc / fpsCount) + ' FPS';
+        fpsAcc = 0;
+        fpsCount = 0;
+      }
+    }
+
+    if (!paused) updateState(mainState, dt, W, H, params, 1);
+
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    renderScene(ctx, mainState, W, H, params, 1);
+
+    infoEl.textContent = 'BEAMS ' + String(mainState.beams.length).padStart(2, '0');
+
+    requestAnimationFrame(loop);
+  }
+
+  /* ==================== 导出视频 ==================== */
+  const btnExportToggle = document.getElementById('btn-export-toggle');
+  const exportBody      = document.getElementById('export-body');
+  const expDur          = document.getElementById('exp-dur');
+  const expDurVal       = document.getElementById('exp-dur-val');
+  const expRes          = document.getElementById('exp-res');
+  const expResVal       = document.getElementById('exp-res-val');
+  const btnExportStart  = document.getElementById('btn-export-start');
+  const exportStatus    = document.getElementById('export-status');
+
+  let isExporting = false;
+
+  btnExportToggle.addEventListener('click', () => {
+    exportBody.classList.toggle('open');
+  });
+
+  expDur.addEventListener('input', () => {
+    expDurVal.textContent = expDur.value + 's';
+  });
+
+  expRes.addEventListener('change', () => {
+    expResVal.textContent = expRes.value.replace('x', ' × ');
+  });
+
+  function pickMime() {
+    const candidates = [
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm',
+      'video/mp4'
+    ];
+    for (const m of candidates) {
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+    }
+    return '';
+  }
+
+  async function exportVideo() {
+    const duration = parseFloat(expDur.value);
+    const [ew, eh] = expRes.value.split('x').map(Number);
+
+    if (!window.MediaRecorder) {
+      throw new Error('当前浏览器不支持 MediaRecorder');
+    }
+
+    /* ---- 创建离屏 canvas ---- */
+    const off = document.createElement('canvas');
+    off.width  = ew;
+    off.height = eh;
+    off.style.position = 'fixed';
+    off.style.left = '-99999px';
+    off.style.top = '0';
+    off.style.pointerEvents = 'none';
+    document.body.appendChild(off);
+
+    const octx = off.getContext('2d', { alpha: false });
+
+    /* ---- 尺寸缩放：让导出画面与当前显示比例一致 ---- */
+    const displayMin = Math.max(1, Math.min(W, H));
+    const exportMin  = Math.min(ew, eh);
+    const sc = exportMin / displayMin;
+
+    /* ---- 独立状态，从左侧起始 ---- */
+    const state = createState();
+    resetState(state, params);
+
+    /* ---- 录制（保持标签页在前台，否则 rAF 被节流丢帧） ---- */
+    const stream = off.captureStream(60);
+    const mime   = pickMime();
+    const bitrate = Math.round(
+      Math.min(24_000_000, Math.max(6_000_000, ew * eh * 0.18))
+    );
+
+    const recorderOpts = { videoBitsPerSecond: bitrate };
+    if (mime) recorderOpts.mimeType = mime;
+
+    const recorder = new MediaRecorder(stream, recorderOpts);
+    const chunks = [];
+
+    recorder.ondataavailable = e => {
+      if (e.data && e.data.size > 0) chunks.push(e.data);
+    };
+
+    return new Promise((resolve, reject) => {
+
+      const cleanup = () => {
+        if (off.parentNode) off.parentNode.removeChild(off);
+      };
+
+      recorder.onerror = () => {
+        cleanup();
+        reject(new Error('录制过程出错'));
+      };
+
+      recorder.onstop = () => {
+        try {
+          const blob = new Blob(chunks, { type: 'video/webm' });
+          const url  = URL.createObjectURL(blob);
+          const a    = document.createElement('a');
+          a.href = url;
+          a.download = `multi-beam_${ew}x${eh}_${duration}s_${Date.now()}.webm`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 3000);
+          cleanup();
+          resolve();
+        } catch (err) {
+          cleanup();
+          reject(err);
+        }
+      };
+
+      /* 先渲染一帧，避免流起始为空白 */
+      octx.setTransform(1, 0, 0, 1, 0, 0);
+      renderScene(octx, state, ew, eh, params, sc);
+
+      recorder.start(100);
+
+      const startTime = performance.now();
+      let prevT = startTime;
+      const totalMs = duration * 1000;
+
+      function frame(now) {
+        const elapsed = now - startTime;
+
+        let dt = (now - prevT) / (1000 / 60);
+        prevT = now;
+        if (dt < 0.001) dt = 0.001;
+        if (dt > 3) dt = 3;
+
+        updateState(state, dt, ew, eh, params, sc);
+
+        octx.setTransform(1, 0, 0, 1, 0, 0);
+        renderScene(octx, state, ew, eh, params, sc);
+
+        const prog = Math.min(1, elapsed / totalMs);
+        exportStatus.textContent =
+          `导出中 ${Math.round(prog * 100)}%  ·  ${ew}×${eh}`;
+
+        if (elapsed < totalMs) {
+          requestAnimationFrame(frame);
+        } else {
+          /* 末帧推流后再停，避免循环回接处多一截静止画面 */
+          const track = stream.getVideoTracks()[0];
+          if (track && track.requestFrame) track.requestFrame();
+          setTimeout(() => {
+            try { recorder.stop(); } catch (e) { /* ignore */ }
+          }, 60);
+        }
+      }
+
+      requestAnimationFrame(frame);
+    });
+  }
+
+  btnExportStart.addEventListener('click', async () => {
+    if (isExporting) return;
+
+    isExporting = true;
+    btnExportStart.disabled = true;
+    btnExportStart.textContent = '导出中…';
+    exportStatus.textContent = '准备中…';
+
+    try {
+      await exportVideo();
+      exportStatus.textContent = '✔ 导出完成，已开始下载';
+    } catch (err) {
+      console.error(err);
+      exportStatus.textContent = '✕ 导出失败：' + (err.message || err);
+    } finally {
+      isExporting = false;
+      btnExportStart.disabled = false;
+      btnExportStart.textContent = '开始导出';
+      setTimeout(() => {
+        if (!isExporting) exportStatus.textContent = '';
+      }, 5000);
+    }
+  });
+
+  /* ==================== 交互 ==================== */
+  const btnPause = document.getElementById('btn-pause');
+  btnPause.addEventListener('click', () => {
+    paused = !paused;
+    btnPause.textContent = paused ? '继续' : '暂停';
+  });
+
+  document.getElementById('btn-reset').addEventListener('click', () => {
+    Object.keys(defaults).forEach(k => {
+      params[k] = defaults[k];
+      const ref = inputs[k];
+      if (ref) {
+        ref.input.value = defaults[k];
+        ref.val.textContent = ref.fmt(defaults[k]);
+      }
+    });
+    resetState(mainState, params);
+  });
+
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space' && !isExporting) {
+      e.preventDefault();
+      btnPause.click();
+    }
+  });
+
+  let rt;
+  window.addEventListener('resize', () => {
+    clearTimeout(rt);
+    rt = setTimeout(resize, 150);
+  });
+
+  /* ==================== 启动 ==================== */
+  resize();
+  resetState(mainState, params);
+  requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>
