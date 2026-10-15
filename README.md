@@ -25,6 +25,7 @@
 
 | 截图 | 实验 | 分类 | 说明 | 参数要点 |
 |---|---|---|---|---|
+| ![线性扫描](screenshots/linear-sweep.png) | [线性扫描 Linear Sweep](experiments/线性扫描/linear-sweep.html) | 线性扫描 | 竖直光束横向扫过粒子网格，被扫到的粒子点亮并留下余辉，支持循环 / 往返两种扫描模式 | 扫描速度 / 光束宽度 / 光束辉光 / 粒子亮度 / 余辉时长 / 粒子密度 / 粒子尺寸 / 主色调 / 色相扩散 / 网格 / 循环·往返 |
 | ![流场粒子](screenshots/flow-field.png) | [流场粒子 Flow Field](experiments/粒子动势/flow-field.html) | 粒子动势 | 粒子沿确定性噪声场流动成丝带 | 数量 / 密度 / 噪声强度 / 轨迹 / 配色 / 种子 |
 | ![流动线条](screenshots/flow-lines.png) | [粒子流动线条 Flow Lines](experiments/粒子动势/flow-lines.html) | 粒子动势 | 粒子水平拖出流光丝线，匀速横贯画面，**可导出循环视频** | 数量 / 间距 / 抖动 / 周期 / 长度 / 粗细 / 色相 / 亮度 + 导出分辨率·帧率·循环次数 |
 | ![星空闪烁](screenshots/starry-twinkle.png) | [星空闪烁 Starry Twinkle](experiments/粒子动势/starry-twinkle.html) | 粒子动势 | 星芒与星尘散布夜空，各自按周期闪烁，**可导出循环视频** | 星芒·星尘数量 / 闪烁速度·强度 / 大小范围 / 尖角数·中心圆·尖角长度·内凹·基部半角 / 颜色 + 导出周期·分辨率·帧率 |
@@ -41,6 +42,7 @@ experiments/
   粒子动势/          # 粒子、湍流、流动类效果
   几何生成/          # 参数化几何图形、星芒、分形图案
   径向扫描/          # 旋转光束、雷达扫描类径向动效
+  线性扫描/          # 光束横扫、扫描线类线性动效
   ...               # 新分类按需长出来（请登记到 AGENTS.md 目录表）
 screenshots/        # 每个实验对应一张真实截图（<实验英文名>.png）
 ```

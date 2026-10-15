@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>线性扫描 · Linear Sweep</title>
+<style>
+  :root{ --acc:#4ee1ff; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ width:100%; height:100%; overflow:hidden; background:#03050a; }
+  #cv{ display:block; position:absolute; inset:0; }
+
+  .panel{
+    position:fixed; top:16px; right:16px; width:272px;
+    max-height:calc(100vh - 32px); overflow-y:auto;
+    padding:14px 16px 16px;
+    background:rgba(8,14,22,.72);
+    -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px);
+    border:1px solid rgba(78,225,255,.20);
+    border-radius:16px;
+    color:#c4d8e6;
+    font:12px/1.4 system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    box-shadow:0 18px 50px rgba(0,0,0,.65);
+    user-select:none;
+    z-index:10;
+  }
+  .panel::-webkit-scrollbar{ width:6px; }
+  .panel::-webkit-scrollbar-thumb{ background:rgba(78,225,255,.25); border-radius:3px; }
+
+  .head{ margin-bottom:12px; }
+  .head h1{ font-size:13px; font-weight:600; letter-spacing:.06em; color:#e6f8ff; }
+  .head h1::before{
+    content:""; display:inline-block; width:6px; height:6px; border-radius:50%;
+    background:var(--acc); margin-right:8px; vertical-align:1px;
+    box-shadow:0 0 10px var(--acc);
+  }
+  .head .sub{ margin-top:5px; font-size:10.5px; color:rgba(78,225,255,.55); line-height:1.5; }
+
+  .section-title{
+    margin:16px 0 10px; padding-top:12px;
+    border-top:1px solid rgba(78,225,255,.12);
+    font-size:11px; color:#5fb6d6; letter-spacing:.1em; font-weight:600;
+  }
+  .section-title:first-of-type{ border-top:none; margin-top:4px; padding-top:0; }
+
+  .row{ margin-bottom:10px; }
+  .lbl{ display:flex; justify-content:space-between; margin-bottom:5px; color:#7fb6cf; font-size:11px; }
+  .lbl .val{ color:var(--acc); font-variant-numeric:tabular-nums; font-weight:500; }
+
+  input[type=range]{
+    -webkit-appearance:none; appearance:none;
+    width:100%; height:3px; border-radius:3px;
+    background:rgba(78,225,255,.16); outline:none; cursor:pointer; display:block;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:13px; height:13px; border-radius:50%;
+    background:var(--acc); border:2px solid #05121a;
+    box-shadow:0 0 8px rgba(78,225,255,.75); transition:transform .15s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover{ transform:scale(1.25); }
+  input[type=range]::-moz-range-thumb{
+    width:13px; height:13px; border-radius:50%; background:var(--acc);
+    border:2px solid #05121a; box-shadow:0 0 8px rgba(78,225,255,.75);
+  }
+
+  button{
+    background:rgba(78,225,255,.07); color:#7fb6cf;
+    border:1px solid rgba(78,225,255,.20); border-radius:8px;
+    padding:7px 10px; font-size:12px; font-family:inherit; cursor:pointer;
+    transition:background .18s, border-color .18s, color .18s;
+  }
+  button:hover{ background:rgba(78,225,255,.14); border-color:rgba(78,225,255,.45); color:#bfeeff; }
+  button.active{
+    background:rgba(78,225,255,.20);
+    border-color:var(--acc);
+    color:#e6f8ff;
+    box-shadow:0 0 14px rgba(78,225,255,.30);
+  }
+
+  .seg{ display:flex; gap:6px; }
+  .seg button{ flex:1; }
+
+  .actions{ display:flex; gap:6px; margin-top:14px; }
+
+  .hud{
+    position:fixed; left:0; right:0; bottom:10px;
+    display:flex; justify-content:space-between;
+    padding:0 18px; pointer-events:none;
+    font:11px/1 ui-monospace,Menlo,Consolas,monospace;
+    letter-spacing:.15em; color:rgba(78,225,255,.5);
+  }
+
+  @media (max-width:640px){
+    .panel{ width:auto; left:12px; right:12px; top:auto; bottom:12px; max-height:52vh; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="cv"></canvas>
+
+<aside class="panel">
+  <div class="head">
+    <h1>线性扫描 · Linear Sweep</h1>
+    <div class="sub">光束横扫粒子网格 · 循环 / 往返 · 配色可调</div>
+  </div>
+
+  <div class="section-title">扫描参数</div>
+  <div class="row">
+    <div class="lbl"><span>扫描速度</span><span class="val" id="vSpeed">2.00</span></div>
+    <input type="range" id="rSpeed" min="0.2" max="8" step="0.1" value="2.0">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>光束宽度</span><span class="val" id="vBeamW">140</span></div>
+    <input type="range" id="rBeamW" min="20" max="400" step="5" value="140">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>光束辉光</span><span class="val" id="vGlow">0.85</span></div>
+    <input type="range" id="rGlow" min="0" max="2" step="0.05" value="0.85">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>粒子亮度</span><span class="val" id="vGain">1.15</span></div>
+    <input type="range" id="rGain" min="0.1" max="3" step="0.05" value="1.15">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>余辉时长</span><span class="val" id="vDecay">0.945</span></div>
+    <input type="range" id="rDecay" min="0.80" max="0.99" step="0.005" value="0.945">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>粒子密度</span><span class="val" id="vSpace">16</span></div>
+    <input type="range" id="rSpace" min="12" max="48" step="1" value="16">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>粒子尺寸</span><span class="val" id="vSize">2.50</span></div>
+    <input type="range" id="rSize" min="1" max="8" step="0.5" value="2.5">
+  </div>
+
+  <div class="section-title">配色</div>
+  <div class="row">
+    <div class="lbl"><span>主色调</span><span class="val" id="vHue">185</span></div>
+    <input type="range" id="rHue" min="0" max="360" step="1" value="185">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>色相扩散</span><span class="val" id="vSpread">44</span></div>
+    <input type="range" id="rSpread" min="0" max="180" step="2" value="44">
+  </div>
+
+  <div class="section-title">网格</div>
+  <div class="row">
+    <div class="lbl"><span>网格间距</span><span class="val" id="vGrid">48</span></div>
+    <input type="range" id="rGrid" min="16" max="160" step="2" value="48">
+  </div>
+  <div class="row">
+    <div class="lbl"><span>网格强度</span><span class="val" id="vGridOp">0.40</span></div>
+    <input type="range" id="rGridOp" min="0" max="1" step="0.02" value="0.40">
+  </div>
+
+  <div class="section-title">扫描模式</div>
+  <div class="row">
+    <div class="seg" id="modeSeg">
+      <button class="active" data-mode="loop">循环</button>
+      <button data-mode="pingpong">往返</button>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="btnPause">暂停</button>
+    <button id="btnReset">重置</button>
+  </div>
+</aside>
+
+<div class="hud">
+  <span id="hud-progress">SWEEP 000%</span>
+  <span id="hud-fps">— FPS</span>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const cv  = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const fpsEl  = document.getElementById('hud-fps');
+  const progEl = document.getElementById('hud-progress');
+
+  let W = 0, H = 0;
+
+  /* ================= 参数（默认值对齐原稿） ================= */
+  const P = {
+    speed:     2.0,   // 扫描速度
+    beamWidth: 140,   // 光束宽度
+    beamGlow:  0.85,  // 光束辉光
+    glowGain:  1.15,  // 粒子亮度
+    decay:     0.945, // 余辉时长（每帧保留比例）
+    spacing:   16,    // 粒子密度（间距，越小越密）
+    size:      2.5,   // 粒子尺寸
+    hue:       185,   // 主色调
+    hueSpread: 44,    // 色相扩散
+    gridStep:  48,    // 网格间距
+    gridOpacity: 0.40 // 网格强度
+  };
+
+  /* ================= 状态 ================= */
+  let particles = [];
+  let scanX = -P.beamWidth;
+  let dir = 1;
+  let mode = 'loop';
+  let paused = false;
+
+  const MAX_PARTICLES = 5200;
+
+  /* ================= 尺寸（按 devicePixelRatio 适配高分屏） ================= */
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth  || document.documentElement.clientWidth  || 800;
+    H = window.innerHeight || document.documentElement.clientHeight || 600;
+    cv.width  = Math.round(W * dpr);
+    cv.height = Math.round(H * dpr);
+    cv.style.width  = W + 'px';
+    cv.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    buildParticles();
+  }
+
+  /* ================= 构建粒子网格 ================= */
+  function buildParticles() {
+    particles = [];
+
+    let sp = P.spacing;
+    let cols = Math.max(1, Math.floor(W / sp));
+    let rows = Math.max(1, Math.floor(H / sp));
+
+    // 数量保护：过密时自动放大间距
+    if (cols * rows > MAX_PARTICLES) {
+      sp *= Math.sqrt((cols * rows) / MAX_PARTICLES);
+      cols = Math.max(1, Math.floor(W / sp));
+      rows = Math.max(1, Math.floor(H / sp));
+    }
+
+    const ox = (W - cols * sp) / 2 + sp / 2;
+    const oy = (H - rows * sp) / 2 + sp / 2;
+
+    for (let j = 0; j < rows; j++) {
+      for (let i = 0; i < cols; i++) {
+        particles.push({
+          x: ox + i * sp,
+          y: oy + j * sp,
+          rnd: Math.random(),
+          glow: 0
+        });
+      }
+    }
+  }
+
+  /* ================= 更新逻辑 ================= */
+  function update(dt) {
+    const bw = P.beamWidth;
+    const margin = bw + 30;
+
+    scanX += P.speed * 5 * dt * dir;
+
+    if (mode === 'loop') {
+      dir = 1;
+      if (scanX > W + margin) scanX = -margin;
+    } else {
+      if (scanX > W + margin) { scanX = W + margin; dir = -1; }
+      else if (scanX < -margin) { scanX = -margin; dir = 1; }
+    }
+
+    const decayF = Math.pow(P.decay, dt);
+    const gain = P.glowGain;
+
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      const d = Math.abs(p.x - scanX);
+
+      if (d < bw) {
+        const t = 1 - d / bw;
+        const v = t * t * gain;
+        if (v > p.glow) p.glow = v;
+      }
+
+      p.glow *= decayF;
+      if (p.glow < 0.002) p.glow = 0;
+    }
+  }
+
+  /* ================= 渲染：网格 ================= */
+  function drawGrid() {
+    const o = P.gridOpacity;
+    if (o <= 0.01) return;
+
+    const step = P.gridStep;
+    ctx.strokeStyle = `hsla(${P.hue}, 70%, 58%, ${0.11 * o})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+
+    for (let x = 0; x <= W + 0.5; x += step) {
+      const px = Math.round(x) + 0.5;
+      ctx.moveTo(px, 0);
+      ctx.lineTo(px, H);
+    }
+    for (let y = 0; y <= H + 0.5; y += step) {
+      const py = Math.round(y) + 0.5;
+      ctx.moveTo(0, py);
+      ctx.lineTo(W, py);
+    }
+    ctx.stroke();
+  }
+
+  /* ================= 渲染：粒子 ================= */
+  function drawParticles() {
+    const baseHue = P.hue;
+    const spread = P.hueSpread;
+    const s = P.size;
+    const half = s / 2;
+
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      const a = p.glow;
+      if (a < 0.02) continue;
+
+      const hue = baseHue + (p.rnd - 0.5) * spread;
+      const alpha = a > 1 ? 1 : a;
+      const h = Math.round(hue);
+
+      // 外扩散光晕
+      if (alpha > 0.12) {
+        ctx.fillStyle = `hsla(${h}, 100%, 55%, ${(alpha * 0.16).toFixed(3)})`;
+        ctx.fillRect(p.x - s * 1.9, p.y - s * 1.9, s * 3.8, s * 3.8);
+      }
+
+      // 核心方块
+      ctx.fillStyle = `hsla(${h}, 100%, ${Math.round(58 + 34 * alpha)}%, ${alpha.toFixed(3)})`;
+      ctx.fillRect(p.x - half, p.y - half, s, s);
+    }
+  }
+
+  /* ================= 渲染：光束 ================= */
+  function drawBeam() {
+    const bw = P.beamWidth;
+    const hue = P.hue;
+    const ga = P.beamGlow;
+
+    // 左侧拖尾渐变
+    const x0 = scanX - bw;
+    const x1 = scanX + bw * 0.14;
+    const g = ctx.createLinearGradient(x0, 0, x1, 0);
+    g.addColorStop(0.00, `hsla(${hue}, 100%, 60%, 0)`);
+    g.addColorStop(0.55, `hsla(${hue}, 100%, 60%, ${(0.035 * ga).toFixed(4)})`);
+    g.addColorStop(0.86, `hsla(${hue}, 100%, 65%, ${(0.16 * ga).toFixed(4)})`);
+    g.addColorStop(1.00, `hsla(${hue}, 100%, 78%, ${(0.30 * ga).toFixed(4)})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(x0, 0, x1 - x0, H);
+
+    // 核心亮线
+    if (scanX > -20 && scanX < W + 20) {
+      ctx.save();
+      ctx.shadowBlur = 42 * ga;
+      ctx.shadowColor = `hsla(${hue}, 100%, 62%, ${0.95 * ga})`;
+      ctx.strokeStyle = `hsla(${hue}, 100%, 90%, 0.95)`;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(scanX, 0);
+      ctx.lineTo(scanX, H);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  /* ================= 渲染：边框与四角 ================= */
+  function drawFrame() {
+    const hue = P.hue;
+
+    ctx.strokeStyle = `hsla(${hue}, 80%, 62%, 0.22)`;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
+
+    const c = Math.min(26, W * 0.07);
+    ctx.strokeStyle = `hsla(${hue}, 95%, 68%, 0.85)`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+
+    ctx.moveTo(1, c);       ctx.lineTo(1, 1);       ctx.lineTo(c, 1);
+    ctx.moveTo(W - c, 1);   ctx.lineTo(W - 1, 1);   ctx.lineTo(W - 1, c);
+    ctx.moveTo(W - 1, H - c); ctx.lineTo(W - 1, H - 1); ctx.lineTo(W - c, H - 1);
+    ctx.moveTo(c, H - 1);   ctx.lineTo(1, H - 1);   ctx.lineTo(1, H - c);
+
+    ctx.stroke();
+  }
+
+  /* ================= 主渲染 ================= */
+  function render() {
+    ctx.setTransform(Math.min(window.devicePixelRatio || 1, 2), 0, 0, Math.min(window.devicePixelRatio || 1, 2), 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+
+    // 背景
+    ctx.fillStyle = '#04060b';
+    ctx.fillRect(0, 0, W, H);
+
+    // 中心微光
+    const cx = W / 2, cy = H / 2;
+    const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, W * 0.62);
+    rg.addColorStop(0, `hsla(${P.hue}, 70%, 52%, 0.07)`);
+    rg.addColorStop(1, 'hsla(0, 0%, 0%, 0)');
+    ctx.fillStyle = rg;
+    ctx.fillRect(0, 0, W, H);
+
+    drawGrid();
+
+    ctx.globalCompositeOperation = 'lighter';
+    drawParticles();
+    drawBeam();
+
+    ctx.globalCompositeOperation = 'source-over';
+    drawFrame();
+  }
+
+  /* ================= 动画循环 ================= */
+  let lastT = performance.now();
+  let fpsAcc = 0, fpsCount = 0;
+
+  function loop(now) {
+    const raw = now - lastT;
+    lastT = now;
+
+    let dt = raw / 16.6667;
+    if (dt < 0.001) dt = 0.001;
+    if (dt > 3) dt = 3;
+
+    // FPS 统计
+    if (raw > 0) {
+      fpsAcc += 1000 / raw;
+      fpsCount++;
+      if (fpsCount >= 24) {
+        fpsEl.textContent = Math.round(fpsAcc / fpsCount) + ' FPS';
+        fpsAcc = 0;
+        fpsCount = 0;
+      }
+    }
+
+    if (!paused) update(dt);
+    render();
+
+    // 进度显示
+    const margin = P.beamWidth + 30;
+    const total = W + margin * 2;
+    const pct = Math.max(0, Math.min(100, ((scanX + margin) / total) * 100));
+    progEl.textContent = 'SWEEP ' + String(Math.round(pct)).padStart(3, '0') + '%';
+
+    requestAnimationFrame(loop);
+  }
+
+  /* ================= 控件绑定 ================= */
+  const $ = id => document.getElementById(id);
+
+  // step 决定小数位：>=1 取整，>=0.1 两位，否则三位
+  const fmt = (v, step) => step >= 1 ? v.toFixed(0) : (step >= 0.1 ? v.toFixed(2) : v.toFixed(3));
+
+  function bind(id, key, vid, rebuild) {
+    const el = $(id);
+    el.addEventListener('input', () => {
+      const v = parseFloat(el.value);
+      P[key] = v;
+      $(vid).textContent = fmt(v, parseFloat(el.step));
+      if (rebuild) buildParticles();
+    });
+  }
+
+  bind('rSpeed',  'speed',      'vSpeed');
+  bind('rBeamW',  'beamWidth',  'vBeamW');
+  bind('rGlow',   'beamGlow',   'vGlow');
+  bind('rGain',   'glowGain',   'vGain');
+  bind('rDecay',  'decay',      'vDecay');
+  bind('rSpace',  'spacing',    'vSpace', true);
+  bind('rSize',   'size',       'vSize');
+  bind('rHue',    'hue',        'vHue');
+  bind('rSpread', 'hueSpread',  'vSpread');
+  bind('rGrid',   'gridStep',   'vGrid');
+  bind('rGridOp', 'gridOpacity','vGridOp');
+
+  const modeSeg = $('modeSeg');
+  modeSeg.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      modeSeg.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      mode = btn.dataset.mode;
+      dir = 1;
+    });
+  });
+
+  const btnPause = $('btnPause');
+  btnPause.addEventListener('click', () => {
+    paused = !paused;
+    btnPause.textContent = paused ? '继续' : '暂停';
+    if (paused) render();   // 暂停态拖参数立即补画一帧
+  });
+
+  $('btnReset').addEventListener('click', () => {
+    Object.assign(P, {
+      speed:2.0, beamWidth:140, beamGlow:0.85, glowGain:1.15, decay:0.945,
+      spacing:16, size:2.5, hue:185, hueSpread:44, gridStep:48, gridOpacity:0.40
+    });
+    const map = [
+      ['rSpeed','speed','vSpeed'], ['rBeamW','beamWidth','vBeamW'], ['rGlow','beamGlow','vGlow'],
+      ['rGain','glowGain','vGain'], ['rDecay','decay','vDecay'], ['rSpace','spacing','vSpace'],
+      ['rSize','size','vSize'], ['rHue','hue','vHue'], ['rSpread','hueSpread','vSpread'],
+      ['rGrid','gridStep','vGrid'], ['rGridOp','gridOpacity','vGridOp']
+    ];
+    map.forEach(([id, key, vid]) => {
+      const el = $(id);
+      el.value = P[key];
+      $(vid).textContent = fmt(P[key], parseFloat(el.step));
+    });
+    buildParticles();
+    scanX = -P.beamWidth;
+    dir = 1;
+    render();
+  });
+
+  // 空格暂停
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space') { e.preventDefault(); btnPause.click(); }
+  });
+
+  let rt;
+  window.addEventListener('resize', () => {
+    clearTimeout(rt);
+    rt = setTimeout(resize, 150);
+  });
+
+  /* ================= 启动 ================= */
+  resize();
+  render();                       // 先画一帧，避免首帧空白
+  scanX = -P.beamWidth;
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
