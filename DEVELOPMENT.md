@@ -8,7 +8,7 @@
 ## 架构说明
 - index.html：实验总览，卡片 + 分类/标签筛选（清单是 index.html 内硬编码的 `EXPERIMENTS` 数组，**不**自动扫描目录，新增实验必须手动登记）
 - experiments/<名>.html：单实验，结构 = 画布 + 参数面板 + 重绘逻辑
-- 品牌动效类没有 Canvas：结构 = 16:9 预览画布（`container-type: size`，内部尺寸用 `cqw`）+ 右侧参数面板 + CSS 动画；时长/延迟以 CSS 变量（`--dur-*` / `--delay-*` / `--stagger-*`）下发，改参数即按模板重建节点重播
+- 品牌动效类没有 Canvas：结构 = 16:9 预览画布（`container-type: size`，内部尺寸用 `cqw`）+ 右侧参数面板 + CSS 动画；时长/延迟/缓动曲线以 CSS 变量（`--dur-*` / `--delay-*` / `--stagger-*` / `--ease-*`）下发，改参数即按模板重建节点重播
 - experiments/_template/：新实验的复制骨架
 - 无构建链：全部浏览器原生运行
 

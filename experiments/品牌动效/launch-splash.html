@@ -6,7 +6,7 @@
 <title>启动动画 · Launch Splash</title>
 <style>
   /* ==================================================
-     动效时长 / 延迟一律走 CSS 变量（单位 ms），滑杆只改变量
+     动效时长 / 延迟 / 缓动曲线一律走 CSS 变量，滑杆和下拉只改变量
      ================================================== */
   :root {
     --dur-logo: 1000ms;
@@ -20,6 +20,12 @@
 
     --stagger-text: 0ms;
     --stagger-sub: 0ms;
+
+    /* 缓动曲线（下拉可换） */
+    --ease-icon: cubic-bezier(0.25, 1.00, 0.50, 1.00);   /* Quart-out */
+    --ease-text: cubic-bezier(0.25, 0.10, 0.25, 1.00);   /* Quart-2   */
+    --ease-sub:  cubic-bezier(0.42, 0.00, 0.58, 1.00);   /* ease      */
+    --ease-logo: cubic-bezier(0.25, 1.00, 0.50, 1.00);   /* Quart-out */
 
     --acc: #1DB954;
   }
@@ -76,9 +82,9 @@
   }
 
   .panel-title { font-size: 17px; font-weight: 600; color: #fff; margin-bottom: 4px; }
-  .panel-desc { font-size: 11.5px; color: #888; margin-bottom: 14px; line-height: 1.55; }
+  .panel-desc { font-size: 11.5px; color: #888; margin-bottom: 12px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  .tabs { display: flex; gap: 8px; margin-bottom: 16px; background: #2a2a2a; padding: 4px; border-radius: 8px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 12px; background: #2a2a2a; padding: 4px; border-radius: 8px; }
   .tab-btn {
     flex: 1; padding: 7px 0; border: none; background: transparent;
     border-radius: 6px; font-size: 13px; color: #aaa; cursor: pointer; transition: .2s;
@@ -86,7 +92,7 @@
   }
   .tab-btn.active { background: #444; color: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, .2); }
 
-  .slider-group { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed #333; }
+  .slider-group { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #333; }
   .slider-group:last-child { border-bottom: none; }
   .slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 12.5px; color: #ccc; }
   .slider-value {
@@ -96,6 +102,23 @@
   }
 
   input[type=range] { width: 100%; accent-color: var(--acc); cursor: pointer; }
+
+  /* 滑杆与缓动曲线下拉同行排布，省一整行高度 */
+  .slider-controls { display: flex; gap: 8px; align-items: center; }
+  .slider-controls input[type=range] { flex: 1 1 auto; min-width: 0; }
+  .slider-controls select { flex: 0 0 92px; width: 92px; }
+
+  select {
+    padding: 3px 5px; background: #2a2a2a; color: #ddd;
+    border: 1px solid #444; border-radius: 6px;
+    font-size: 11px; line-height: 1.3; outline: none; cursor: pointer; font-family: inherit;
+  }
+  select:hover { border-color: #555; }
+  select:focus { border-color: var(--acc); }
+
+  /* 两个短滑杆并一行（延迟 + 错位），省一整行高度 */
+  .pair-row { display: flex; gap: 10px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #333; }
+  .pair { flex: 1 1 0; min-width: 0; }
 
   .total-duration-panel {
     background: var(--acc);
@@ -174,7 +197,7 @@
   .tagline span { display: inline-block; opacity: 0; will-change: transform, opacity, filter; }
 
   /* ==================================================
-     关键帧
+     关键帧（不用 cqw：@keyframes 里的容器单位会让动画卡在 0% 帧）
      ================================================== */
   /* 方案 1 · 呼吸微光 */
   @keyframes anim1-icon { 0% { opacity: 0; transform: translateY(35%) scale(.92); filter: blur(6px); } 100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
@@ -187,51 +210,52 @@
   @keyframes anim3-text-right { 0% { opacity: 0; transform: translateX(55%); filter: blur(4px); } 100% { opacity: 1; transform: translateX(0); filter: blur(0); } }
   @keyframes anim3-sub { 0% { opacity: 0; transform: translateY(40%); filter: blur(6px) scale(.9); } 100% { opacity: 1; transform: translateY(0); filter: blur(0) scale(1); } }
 
-  /* 方案 5 · 最初经典（关键帧里不用 cqw，见下方命名约定） */
+  /* 方案 5 · 最初经典 */
   @keyframes anim5-original-logo { 0% { opacity: 0; transform: translateY(25%) scale(.94); filter: blur(10px); } 55% { opacity: 1; filter: blur(0); } 100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
   @keyframes anim5-original-char { 0% { opacity: 0; transform: translateY(40%); filter: blur(5px); } 100% { opacity: 1; transform: translateY(0); filter: blur(0); } }
 
   /* ==================================================
-     方案触发
+     方案触发（缓动曲线也走变量，下拉可换）
      ================================================== */
   .play-1 .logo-icon {
-    animation: anim1-icon var(--dur-icon) cubic-bezier(.16, 1, .3, 1) both;
+    animation: anim1-icon var(--dur-icon) var(--ease-icon) both;
   }
   .play-1 .icon-box {
+    /* 呼吸固定 ease-in-out，不受下拉影响 */
     animation: anim1-breathe 4s ease-in-out var(--dur-icon) infinite;
   }
   .play-1 .logo-text span {
-    animation: anim1-text var(--dur-text) cubic-bezier(.16, 1, .3, 1) both;
+    animation: anim1-text var(--dur-text) var(--ease-text) both;
     animation-delay: calc(var(--delay-text) + var(--i) * var(--stagger-text));
   }
   .play-1 .tagline span {
-    animation: anim1-text var(--dur-sub) cubic-bezier(.16, 1, .3, 1) both;
+    animation: anim1-text var(--dur-sub) var(--ease-sub) both;
     animation-delay: calc(var(--delay-sub) + var(--i) * var(--stagger-sub));
   }
 
   .play-3 .logo-icon {
-    animation: anim3-icon var(--dur-icon) cubic-bezier(.34, 1.56, .64, 1) both;
+    animation: anim3-icon var(--dur-icon) var(--ease-icon) both;
   }
   .play-3 .logo-text span:nth-child(odd) {
-    animation: anim3-text-left var(--dur-text) cubic-bezier(.34, 1.56, .64, 1) both;
+    animation: anim3-text-left var(--dur-text) var(--ease-text) both;
     animation-delay: calc(var(--delay-text) + var(--i) * var(--stagger-text));
   }
   .play-3 .logo-text span:nth-child(even) {
-    animation: anim3-text-right var(--dur-text) cubic-bezier(.34, 1.56, .64, 1) both;
+    animation: anim3-text-right var(--dur-text) var(--ease-text) both;
     animation-delay: calc(var(--delay-text) + var(--i) * var(--stagger-text));
   }
   .play-3 .tagline span {
-    animation: anim3-sub var(--dur-sub) cubic-bezier(.16, 1, .3, 1) both;
+    animation: anim3-sub var(--dur-sub) var(--ease-sub) both;
     animation-delay: calc(var(--delay-sub) + var(--i) * var(--stagger-sub));
   }
 
   .play-5 .logo-wrap {
-    animation: anim5-original-logo var(--dur-logo) cubic-bezier(.16, 1, .3, 1) both;
+    animation: anim5-original-logo var(--dur-logo) var(--ease-logo) both;
   }
   .play-5 .logo-icon, .play-5 .logo-text span { opacity: 1; animation: none; }
   .play-5 .icon-box { animation: none; }
   .play-5 .tagline span {
-    animation: anim5-original-char var(--dur-sub) cubic-bezier(.16, 1, .3, 1) both;
+    animation: anim5-original-char var(--dur-sub) var(--ease-sub) both;
     animation-delay: calc(var(--delay-sub) + var(--i) * var(--stagger-sub));
   }
 
@@ -287,7 +311,7 @@
 
   <div class="control-panel">
     <div class="panel-title">动效参数调试</div>
-    <div class="panel-desc">拖拽滑块调参（步长 100ms），松手自动重播</div>
+    <div class="panel-desc">拖滑杆调时长、下拉选缓动曲线，松手自动重播</div>
 
     <div class="tabs" id="tabs">
       <button class="tab-btn active" data-anim="1">呼吸微光</button>
@@ -299,19 +323,39 @@
     <div id="group-icon-text">
       <div class="slider-group">
         <div class="slider-header"><span>图标出现时长</span><span class="slider-value" id="label-icon">500ms</span></div>
-        <input type="range" id="slider-icon" min="100" max="3000" step="100" value="500">
+        <div class="slider-controls">
+          <input type="range" id="slider-icon" min="100" max="3000" step="100" value="500">
+          <select id="ease-icon" title="图标入场缓动曲线">
+            <option value="cubic-bezier(0.50, 0.00, 0.75, 0.00)">Quart-in</option>
+            <option value="cubic-bezier(0.25, 1.00, 0.50, 1.00)" selected>Quart-out</option>
+            <option value="cubic-bezier(0.25, 0.10, 0.25, 1.00)">Quart-2</option>
+            <option value="cubic-bezier(0.75, 0.00, 0.75, 0.90)">Quart-3</option>
+            <option value="cubic-bezier(0.42, 0.00, 0.58, 1.00)">ease</option>
+          </select>
+        </div>
       </div>
       <div class="slider-group">
         <div class="slider-header"><span>Logo 文字时长</span><span class="slider-value" id="label-text">500ms</span></div>
-        <input type="range" id="slider-text" min="100" max="3000" step="100" value="500">
+        <div class="slider-controls">
+          <input type="range" id="slider-text" min="100" max="3000" step="100" value="500">
+          <select id="ease-text" title="文字入场缓动曲线">
+            <option value="cubic-bezier(0.50, 0.00, 0.75, 0.00)">Quart-in</option>
+            <option value="cubic-bezier(0.25, 1.00, 0.50, 1.00)">Quart-out</option>
+            <option value="cubic-bezier(0.25, 0.10, 0.25, 1.00)" selected>Quart-2</option>
+            <option value="cubic-bezier(0.75, 0.00, 0.75, 0.90)">Quart-3</option>
+            <option value="cubic-bezier(0.42, 0.00, 0.58, 1.00)">ease</option>
+          </select>
+        </div>
       </div>
-      <div class="slider-group">
-        <div class="slider-header"><span>图标后文字延迟</span><span class="slider-value" id="label-delay-text">0ms</span></div>
-        <input type="range" id="slider-delay-text" min="0" max="2000" step="100" value="0">
-      </div>
-      <div class="slider-group">
-        <div class="slider-header"><span>文字逐字错位</span><span class="slider-value" id="label-stagger-text">0ms</span></div>
-        <input type="range" id="slider-stagger-text" min="0" max="500" step="100" value="0">
+      <div class="pair-row">
+        <div class="pair">
+          <div class="slider-header"><span>文字延迟</span><span class="slider-value" id="label-delay-text">0ms</span></div>
+          <input type="range" id="slider-delay-text" min="0" max="2000" step="100" value="0">
+        </div>
+        <div class="pair">
+          <div class="slider-header"><span>文字错位</span><span class="slider-value" id="label-stagger-text">0ms</span></div>
+          <input type="range" id="slider-stagger-text" min="0" max="500" step="100" value="0">
+        </div>
       </div>
     </div>
 
@@ -319,22 +363,42 @@
     <div id="group-logo" style="display:none">
       <div class="slider-group">
         <div class="slider-header"><span>整体 Logo 时长</span><span class="slider-value" id="label-logo">1000ms</span></div>
-        <input type="range" id="slider-logo" min="100" max="3000" step="100" value="1000">
+        <div class="slider-controls">
+          <input type="range" id="slider-logo" min="100" max="3000" step="100" value="1000">
+          <select id="ease-logo" title="整体 Logo 入场缓动曲线">
+            <option value="cubic-bezier(0.50, 0.00, 0.75, 0.00)">Quart-in</option>
+            <option value="cubic-bezier(0.25, 1.00, 0.50, 1.00)" selected>Quart-out</option>
+            <option value="cubic-bezier(0.25, 0.10, 0.25, 1.00)">Quart-2</option>
+            <option value="cubic-bezier(0.75, 0.00, 0.75, 0.90)">Quart-3</option>
+            <option value="cubic-bezier(0.42, 0.00, 0.58, 1.00)">ease</option>
+          </select>
+        </div>
       </div>
     </div>
 
     <!-- 公共参数：副标题 -->
     <div class="slider-group" style="margin-top:8px">
       <div class="slider-header"><span>副标题时长</span><span class="slider-value" id="label-sub">400ms</span></div>
-      <input type="range" id="slider-sub" min="100" max="3000" step="100" value="400">
+      <div class="slider-controls">
+        <input type="range" id="slider-sub" min="100" max="3000" step="100" value="400">
+        <select id="ease-sub" title="副标题入场缓动曲线">
+          <option value="cubic-bezier(0.50, 0.00, 0.75, 0.00)">Quart-in</option>
+          <option value="cubic-bezier(0.25, 1.00, 0.50, 1.00)">Quart-out</option>
+          <option value="cubic-bezier(0.25, 0.10, 0.25, 1.00)">Quart-2</option>
+          <option value="cubic-bezier(0.75, 0.00, 0.75, 0.90)">Quart-3</option>
+          <option value="cubic-bezier(0.42, 0.00, 0.58, 1.00)" selected>ease</option>
+        </select>
+      </div>
     </div>
-    <div class="slider-group">
-      <div class="slider-header"><span>副标题起始延迟</span><span class="slider-value" id="label-delay-sub">400ms</span></div>
-      <input type="range" id="slider-delay-sub" min="0" max="3000" step="100" value="400">
-    </div>
-    <div class="slider-group">
-      <div class="slider-header"><span>副标题逐字错位</span><span class="slider-value" id="label-stagger-sub">0ms</span></div>
-      <input type="range" id="slider-stagger-sub" min="0" max="500" step="100" value="0">
+    <div class="pair-row">
+      <div class="pair">
+        <div class="slider-header"><span>副题延迟</span><span class="slider-value" id="label-delay-sub">400ms</span></div>
+        <input type="range" id="slider-delay-sub" min="0" max="3000" step="100" value="400">
+      </div>
+      <div class="pair">
+        <div class="slider-header"><span>副题错位</span><span class="slider-value" id="label-stagger-sub">0ms</span></div>
+        <input type="range" id="slider-stagger-sub" min="0" max="500" step="100" value="0">
+      </div>
     </div>
 
     <div class="total-duration-panel">
@@ -364,6 +428,7 @@
 
   /* ================= 预计总时长 =================
      三条链取结束时刻的最大值，每条链 = 延迟 +（字数-1）× 逐字错位 + 时长
+     （曲线不影响总时长，只改变过程中的手感）
   ============================================== */
   function calculateTotalDuration() {
     const durIcon    = +$('slider-icon').value;
@@ -418,23 +483,27 @@
   tabBtns.forEach(btn => btn.addEventListener('click', () => forceReplay(btn.dataset.anim)));
   $('replayBtn').addEventListener('click', () => forceReplay(currentAnim));
 
-  /* ================= 滑杆 → CSS 变量 =================
-     拖动时立刻更新数值与总时长，停手 300ms 后再重播，避免每帧重建 DOM
-  ================================================= */
+  /* ============ 停手 300ms 后重播（换曲线 / 换时长共用） ============ */
   let replayTimer = null, rafId = 0;
 
+  function scheduleReplay() {
+    clearTimeout(replayTimer);
+    replayTimer = setTimeout(() => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => forceReplay(currentAnim));
+    }, 300);
+  }
+
+  /* ================= 滑杆 → CSS 变量 =================
+     拖动时立刻更新数值与总时长，停手后再重建节点重播，避免每帧重建 DOM
+  ================================================= */
   function bindSlider(sliderId, labelId, cssVar) {
     const slider = $(sliderId), label = $(labelId);
     slider.addEventListener('input', () => {
       label.innerText = slider.value + 'ms';
       root.style.setProperty(cssVar, slider.value + 'ms');
       calculateTotalDuration();
-
-      clearTimeout(replayTimer);
-      replayTimer = setTimeout(() => {
-        cancelAnimationFrame(rafId);
-        rafId = requestAnimationFrame(() => forceReplay(currentAnim));
-      }, 300);
+      scheduleReplay();
     });
   }
 
@@ -446,6 +515,22 @@
   bindSlider('slider-sub',          'label-sub',          '--dur-sub');
   bindSlider('slider-delay-sub',    'label-delay-sub',    '--delay-sub');
   bindSlider('slider-stagger-sub',  'label-stagger-sub',  '--stagger-sub');
+
+  /* ================= 曲线下拉 → CSS 变量 =================
+     曲线不影响总时长，但同样要换节点重播才能看到新手感
+  ======================================================= */
+  function bindSelect(selectId, cssVar) {
+    const select = $(selectId);
+    select.addEventListener('change', () => {
+      root.style.setProperty(cssVar, select.value);
+      scheduleReplay();
+    });
+  }
+
+  bindSelect('ease-icon', '--ease-icon');
+  bindSelect('ease-text', '--ease-text');
+  bindSelect('ease-logo', '--ease-logo');
+  bindSelect('ease-sub',  '--ease-sub');
 
   /* ================= 启动 ================= */
   forceReplay(1);
