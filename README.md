@@ -32,7 +32,7 @@
 | ![星芒](screenshots/star-spikes.png) | [星芒 Star Spikes](experiments/几何生成/star-spikes.html) | 几何生成 | 参数化星芒：尖角可旋转分布，内凹成芒 | 尖角数 / 中心圆半径 / 尖角长度 / 基部半角 / 内凹程度 / 颜色 |
 | ![雪花](screenshots/snowflake.png) | [雪花 Snowflake](experiments/几何生成/snowflake.html) | 几何生成 | 参数化雪花：分形分支 + 尖端 V 形，旋转复制对称 | 对称臂数 / 主臂与分支长度 / 张开角度 / 递减比例 / 尖端 V 形 |
 | ![雷达扫描](screenshots/radar-scan.png) | [雷达扫描 Radar Scan](experiments/径向扫描/radar-scan.html) | 径向扫描 | 多条光束自圆心同时旋转扫过圆形区域，拖尾呈扇形渐隐 | 扫描速度 / 扫描数量 / 拖尾长度 / 顺·逆时针 / 网格 / 扫描颜色 |
-| ![启动动画](screenshots/launch-splash.png) | [启动动画 Launch Splash](experiments/品牌动效/launch-splash.html) | 品牌动效 | 品牌 Logo 入场动效，3 套方案可切换，节奏与配色实时可调 | 入场方案 / 动画倍速 / 字符间隔 / 副标题延迟 / 渐变双色 / 副标题开关 / 自动轮播·间隔 |
+| ![启动动画](screenshots/launch-splash.png) | [启动动画 Launch Splash](experiments/品牌动效/launch-splash.html) | 品牌动效 | 启动动画参数调试台：16:9 预览画布 + 毫秒级滑杆，3 套入场方案，实时预估总时长 | 入场方案 / 图标时长 / 文字时长·延迟·逐字错位 / 整体 Logo 时长 / 副标题时长·延迟·逐字错位 |
 
 ## 目录规范（新增实验前必读）
 

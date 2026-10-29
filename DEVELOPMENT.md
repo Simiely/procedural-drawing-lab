@@ -8,7 +8,7 @@
 ## 架构说明
 - index.html：实验总览，卡片 + 分类/标签筛选（清单是 index.html 内硬编码的 `EXPERIMENTS` 数组，**不**自动扫描目录，新增实验必须手动登记）
 - experiments/<名>.html：单实验，结构 = 画布 + 参数面板 + 重绘逻辑
-- 品牌动效类没有 Canvas：结构 = 舞台 DOM（SVG + 文字）+ 参数面板 + CSS 动画，节奏参数以 CSS 变量（`--spd` / `--gap` / `--subDelay`）下发，改参数即重建动画
+- 品牌动效类没有 Canvas：结构 = 16:9 预览画布（`container-type: size`，内部尺寸用 `cqw`）+ 右侧参数面板 + CSS 动画；时长/延迟以 CSS 变量（`--dur-*` / `--delay-*` / `--stagger-*`）下发，改参数即按模板重建节点重播
 - experiments/_template/：新实验的复制骨架
 - 无构建链：全部浏览器原生运行
 
@@ -45,8 +45,25 @@
 - 根因：
   - 动画：`el.classList.remove('play-1'); el.classList.add('play-1')` 在同一帧内完成时，浏览器认为动画实例没变，不会重置计时（哪怕 `void offsetWidth` 也没用，只有 `animation:none` 后再回流才真的换实例）。
   - 截图：`--virtual-time-budget` 快进的是 `setTimeout / setInterval` 等虚拟时间，**CSS 动画时钟仍按墙钟走**。同一个 budget 两次执行，一次动画已跑完（终态）、一次刚起步（起始帧 opacity:0）——所以「黑屏」出现的时机与 budget 数值没有稳定对应关系，实测 budget=1200 黑、1600 亮、1200 再跑又亮。
-- 解决：动画重播改为重建 `stage.innerHTML`（新节点 = 新动画实例），参数变化加 120ms 防抖 + 一帧 rAF 再重建，避免拖滑杆时每帧重建。截图改为连拍多张后用**亮度指标**挑（终态 `bright%`≈2.5 / `mean`≈6.6，起始帧 `bright%`=0），不靠肉眼。
-- 预防：① 凡「点一下要重播」的动效，一律走重建节点的 `play()` 入口，别指望切 class；② 验收动画截图必须量化（亮/暗像素占比、`getComputedStyle` 的 opacity），肉眼看「好像有东西」会把起始帧当成终态；③ 别拿 `--virtual-time-budget` 当「等待 N 毫秒」用。
+- 解决：动画重播改为按模板重建节点（`contentTemplate` 克隆 → `replaceChild`，新节点 = 新动画实例），参数变化加 300ms 防抖 + 一帧 rAF 再重建，避免拖滑杆时每帧重建。截图改为连拍多张后用**亮度指标**挑（亮像素占比 / 均值，起始帧接近 0），不靠肉眼。
+- 预防：① 凡「点一下要重播」的动效，一律走重建节点的入口，别指望切 class；② 验收动画截图必须量化（亮/暗像素占比、`getComputedStyle` 的 opacity），肉眼看「好像有东西」会把起始帧当成终态；③ 别拿 `--virtual-time-budget` 当「等待 N 毫秒」用。
+
+---
+
+### 问题：`@keyframes` 里用 `cqw`，整棵子树的动画卡在 0% 帧
+
+**TL;DR**：容器查询单位只能用在静态布局属性上；写进 `@keyframes` 会让该容器内**所有**动画停在第 0 帧 —— 表现是"这个方案完全不显示"，而且换关键帧名、换缓动、加父层动画都救不回来。
+
+- 问题：「启动动画」改用 `container-type: size` + `cqw` 做尺寸后，方案 3「弹性错位」整体不显示：画布内只剩副标题，图标与主标全无。奇怪的是方案 1 用同样的机制却正常。
+- 排查（全部可复现，各跑 3 遍指标稳定）：
+  - 把 CSS 单独拿出来写死 `class="play-3"`（不跑 JS）→ 仍然不显示 ⇒ 排除 JS 与重播逻辑。
+  - `document.styleSheets[0].cssRules` 里 55 条规则、9 个 keyframes 全部解析成功 ⇒ 排除语法错误。
+  - 计算样式：图标 `animation-name=anim3-icon`、`playState=running`、`currentTime=0`，且 rect 恰为 `31.5 × scale(.5) = 16px` ⇒ 动画**存在但永远停在 0% 帧**。
+  - 只留图标规则（删掉文字与副标题规则）→ 图标正常显示；只要把带 `translateX(-2cqw)` 的那两条规则加回来，图标也跟着一起失效。
+  - 把 `translateX(±2cqw)` 换成 `±12px` → 文字恢复；再把 `anim3-icon` 的 100% 帧补上 `filter` → 图标恢复。三方案终态亮像素占比由 **0.049 → 0.378~0.386**。
+- 根因：`@keyframes` 中的容器查询单位在当前内核下解析不可靠，会让动画一直处于"未开始"状态（`currentTime=0` 且不推进），并且影响同一子树内的其它动画。方案 1 之所以"正常"，只是它的 0% 帧同样 `opacity:0`，肉眼分不清是"跑完了"还是"没开始"。
+- 解决：关键帧里的位移一律改成相对自身的 `%`（`translateY(40%)` / `translateX(±55%)`），模糊与阴影用 `px`；`cqw` 只保留在 `width` / `font-size` / `padding` 等静态属性上。
+- 预防：① 写动效前先确认关键帧里没有 `cqw` / `cqh` / `cqi`；② 每个方案都要单独截图验收，别只测默认方案（方案 1 的"正常"是假象）；③ 验收看**动画是否真的推进**（`getAnimations()[0].currentTime` 是否 > 0、终态 opacity 是否为 1），而不是看元素"有没有那么点影子"。
 
 ---
 

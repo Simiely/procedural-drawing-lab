@@ -2,472 +2,453 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>启动动画 · Launch Splash</title>
 <style>
-  :root{
-    --acc:#ff3b6b;                 /* 面板主色 */
-    --c1:#FF3366;                  /* 图标渐变起色 */
-    --c2:#B224EF;                  /* 图标渐变终色 */
-    --spd:1;                       /* 动画倍速 */
-    --gap:80ms;                    /* 字符入场间隔 */
-    --subDelay:600ms;              /* 副标题入场延迟 */
-    --ease:cubic-bezier(.16,1,.3,1);
-    --ease-elastic:cubic-bezier(.34,1.56,.64,1);
-  }
-  *{ box-sizing:border-box; margin:0; padding:0; }
-  html,body{ width:100%; height:100%; overflow:hidden; background:#000; }
+  /* ==================================================
+     动效时长 / 延迟一律走 CSS 变量（单位 ms），滑杆只改变量
+     ================================================== */
+  :root {
+    --dur-logo: 1000ms;
 
-  /* ================= 舞台：全屏黑底，内容居中 ================= */
-  .stage{
-    position:absolute; inset:0;
-    display:flex; align-items:center; justify-content:center;
-    background:radial-gradient(ellipse at 50% 46%, #12030a 0%, #000 62%);
-  }
-  .lockup{ display:flex; flex-direction:column; align-items:center; will-change:transform,opacity,filter; }
-  .row{ display:flex; align-items:center; gap:2.2vmin; }
+    --dur-icon: 500ms;
+    --dur-text: 500ms;
+    --dur-sub: 400ms;
 
-  /* 图标：外层挂光晕，内层挂入场，避免两个动画抢同一个 filter */
-  .mark-wrap{ flex:0 0 auto; display:block; }
-  .mark{ width:12.6vmin; height:12.6vmin; max-width:200px; max-height:200px; display:block; overflow:visible; }
-  .mark-bg{ fill:url(#brandGrad); }
-  .mark-stroke{ fill:none; stroke:#fff; stroke-width:7; stroke-linecap:round; stroke-linejoin:round; }
-  .mark-dot{ fill:#fff; }
-  .stop-a{ stop-color:var(--c1); }
-  .stop-b{ stop-color:var(--c2); }
+    --delay-text: 0ms;
+    --delay-sub: 400ms;
 
-  /* 主标文字 */
-  .word{
-    display:flex; white-space:nowrap;
-    font:800 9.2vmin/1 "PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
-    letter-spacing:.01em; color:#fff;
-  }
-  .word span, .tagline span{ display:inline-block; opacity:0; will-change:transform,opacity,filter; }
+    --stagger-text: 0ms;
+    --stagger-sub: 0ms;
 
-  /* 副标题：与主标同宽，字距均分 */
-  .tagline{
-    align-self:stretch; display:flex; justify-content:space-between;
-    margin-top:3.4vmin;
-    font:400 2.5vmin/1 "PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
-    letter-spacing:.14em; color:#8a8a8a;
+    --acc: #1DB954;
   }
 
-  /* ================= 关键帧 ================= */
-  /* 方案 1：图标上浮 + 去模糊 */
-  @keyframes splash-rise{
-    from{ opacity:0; transform:translateY(1.6vmin) scale(.94); filter:blur(6px); }
-    to  { opacity:1; transform:translateY(0) scale(1);      filter:blur(0); }
-  }
-  /* 方案 1：图标呼吸光晕 */
-  @keyframes splash-glow{
-    0%,100%{ filter:drop-shadow(0 0 1.2vmin var(--c1)); }
-    50%    { filter:drop-shadow(0 0 2.4vmin var(--c2)); }
-  }
-  /* 文字轻上浮（主标 / 副标题通用） */
-  @keyframes splash-text{
-    from{ opacity:0; transform:translateY(.9vmin); filter:blur(2px); }
-    to  { opacity:1; transform:translateY(0);     filter:blur(0); }
-  }
-  /* 方案 3：图标弹性缩放 */
-  @keyframes splash-pop{
-    0%  { opacity:0; transform:scale(.5); filter:blur(8px); }
-    60% { opacity:1; transform:scale(1.1); filter:blur(0); }
-    100%{ opacity:1; transform:scale(1); }
-  }
-  /* 方案 3：奇偶字符左右错位入场 */
-  @keyframes splash-in-l{
-    from{ opacity:0; transform:translateX(-2vmin); filter:blur(4px); }
-    to  { opacity:1; transform:translateX(0);      filter:blur(0); }
-  }
-  @keyframes splash-in-r{
-    from{ opacity:0; transform:translateX(2vmin); filter:blur(4px); }
-    to  { opacity:1; transform:translateX(0);     filter:blur(0); }
-  }
-  /* 方案 3：副标题轻微缩放 */
-  @keyframes splash-sub{
-    from{ opacity:0; transform:translateY(.9vmin) scale(.94); filter:blur(6px); }
-    to  { opacity:1; transform:translateY(0) scale(1);       filter:blur(0); }
-  }
-  /* 方案 5：整组 Logo 一起浮现 */
-  @keyframes splash-float{
-    0%  { opacity:0; transform:translateY(4vmin) scale(.96); filter:blur(10px); }
-    55% { opacity:1; filter:blur(0); }
-    100%{ opacity:1; transform:translateY(0) scale(1); filter:blur(0); }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background-color: #121212;
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
   }
 
-  /* ================= 方案 1 · 呼吸微光 ================= */
-  .play-1 .mark{ animation:splash-rise  calc(.8s * var(--spd)) var(--ease) both; }
-  .play-1 .mark-wrap{ animation:splash-glow 4s ease-in-out calc(.8s * var(--spd)) infinite; }
-  .play-1 .word span{
-    animation:splash-text calc(.8s * var(--spd)) var(--ease) both;
-    animation-delay:calc((.2s + var(--i) * var(--gap)) * var(--spd));
-  }
-  .play-1 .tagline span{
-    animation:splash-text calc(.8s * var(--spd)) var(--ease) both;
-    animation-delay:calc((var(--subDelay) + var(--i) * var(--gap) * .6) * var(--spd));
-  }
-
-  /* ================= 方案 3 · 弹性错位 ================= */
-  .play-3 .mark{ animation:splash-pop calc(1s * var(--spd)) var(--ease-elastic) both; }
-  .play-3 .word span:nth-child(odd){
-    animation:splash-in-l calc(.9s * var(--spd)) var(--ease-elastic) both;
-    animation-delay:calc((.2s + var(--i) * var(--gap)) * var(--spd));
-  }
-  .play-3 .word span:nth-child(even){
-    animation:splash-in-r calc(.9s * var(--spd)) var(--ease-elastic) both;
-    animation-delay:calc((.2s + var(--i) * var(--gap)) * var(--spd));
-  }
-  .play-3 .tagline span{
-    animation:splash-sub calc(.8s * var(--spd)) var(--ease) both;
-    animation-delay:calc((var(--subDelay) + var(--i) * var(--gap) * .75) * var(--spd));
+  /* ====== 左侧 16:9 预览画布 ====== */
+  .canvas-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    background-color: #1a1a1a;
+    overflow: hidden;
   }
 
-  /* ================= 方案 5 · 经典浮现 ================= */
-  .play-5 .lockup{ animation:splash-float calc(1.05s * var(--spd)) var(--ease) both; }
-  .play-5 .mark, .play-5 .word span{ opacity:1; animation:none; }
-  .play-5 .tagline span{
-    animation:splash-text calc(.85s * var(--spd)) var(--ease) both;
-    animation-delay:calc((var(--subDelay) + .3s + var(--i) * var(--gap) * .75) * var(--spd));
+  .screen {
+    width: 100%;
+    max-width: 1024px;
+    aspect-ratio: 16 / 9;
+    background-color: #000;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, .5);
+    border: 1px solid #333;
+    border-radius: 4px;
+    overflow: hidden;
+    container-type: size;      /* 内部尺寸用 cqw，跟着画布缩放 */
   }
 
-  /* 减弱动效：直接落到终态，不做位移与模糊 */
-  @media (prefers-reduced-motion: reduce){
-    .lockup, .mark, .mark-wrap, .word span, .tagline span{
-      animation-duration:.01ms !important;
-      animation-delay:0ms !important;
-      animation-iteration-count:1 !important;
+  /* ====== 右侧参数面板 ====== */
+  .control-panel {
+    width: 340px;
+    flex: 0 0 340px;
+    background: #1e1e1e;
+    border-left: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 22px 22px;
+    overflow-y: auto;
+    box-shadow: -5px 0 20px rgba(0, 0, 0, .3);
+    z-index: 100;
+  }
+
+  .panel-title { font-size: 17px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+  .panel-desc { font-size: 11.5px; color: #888; margin-bottom: 14px; line-height: 1.55; }
+
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; background: #2a2a2a; padding: 4px; border-radius: 8px; }
+  .tab-btn {
+    flex: 1; padding: 7px 0; border: none; background: transparent;
+    border-radius: 6px; font-size: 13px; color: #aaa; cursor: pointer; transition: .2s;
+    font-weight: 500; font-family: inherit;
+  }
+  .tab-btn.active { background: #444; color: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, .2); }
+
+  .slider-group { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed #333; }
+  .slider-group:last-child { border-bottom: none; }
+  .slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 12.5px; color: #ccc; }
+  .slider-value {
+    font-family: ui-monospace, Consolas, monospace; color: var(--acc); font-weight: bold;
+    background: rgba(29, 185, 84, .15); padding: 2px 6px; border-radius: 4px; font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  input[type=range] { width: 100%; accent-color: var(--acc); cursor: pointer; }
+
+  .total-duration-panel {
+    background: var(--acc);
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin: 12px 0 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(29, 185, 84, .2);
+  }
+  .total-label { font-size: 13px; font-weight: 500; opacity: .9; }
+  .total-value { font-size: 20px; font-weight: bold; font-family: ui-monospace, Consolas, monospace; }
+
+  .replay-btn {
+    padding: 10px;
+    background: #333;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: .2s;
+    font-family: inherit;
+  }
+  .replay-btn:hover { background: #555; transform: translateY(-1px); }
+
+  /* ==================================================
+     画布内部元素（cqw = 画布宽度的 1%，随预览缩放）
+     ================================================== */
+  .content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    top: -2.5%;
+    padding: 2cqw;
+  }
+
+  .logo-wrap {
+    width: 22.46cqw;
+    max-width: 460px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2cqw;
+    position: relative;
+  }
+
+  /* 光晕挂外层、入场挂内层：两个动画不能同时动 filter */
+  .icon-box { display: block; flex-shrink: 0; }
+  .logo-icon {
+    display: block;
+    width: 4.8cqw; height: 4.8cqw; max-width: 100px; max-height: 100px;
+    overflow: visible;
+  }
+
+  .icon-bg { fill: url(#gradient); }
+  .icon-stroke { fill: none; stroke: #fff; stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
+  .icon-dot { fill: #fff; }
+
+  .logo-text {
+    font-size: 3.6cqw; font-weight: 800; color: #fff; line-height: 1;
+    letter-spacing: .02em; white-space: nowrap; display: flex; position: relative;
+  }
+  .logo-text span { display: inline-block; opacity: 0; will-change: transform, opacity, filter; }
+
+  .tagline {
+    display: flex; justify-content: space-between;
+    width: 21.387cqw; max-width: 438px;
+    font-size: 1.416cqw; line-height: 1; margin-top: 1.5cqw;
+    color: #8a8a8a; font-weight: 400; position: relative;
+  }
+  .tagline span { display: inline-block; opacity: 0; will-change: transform, opacity, filter; }
+
+  /* ==================================================
+     关键帧
+     ================================================== */
+  /* 方案 1 · 呼吸微光 */
+  @keyframes anim1-icon { 0% { opacity: 0; transform: translateY(35%) scale(.92); filter: blur(6px); } 100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
+  @keyframes anim1-breathe { 0%, 100% { filter: drop-shadow(0 0 12px rgba(255, 51, 102, .4)); } 50% { filter: drop-shadow(0 0 26px rgba(178, 36, 239, .7)); } }
+  @keyframes anim1-text { 0% { opacity: 0; transform: translateY(40%); filter: blur(2px); } 100% { opacity: 1; transform: translateY(0); filter: blur(0); } }
+
+  /* 方案 3 · 弹性错位 */
+  @keyframes anim3-icon { 0% { opacity: 0; transform: scale(.5); filter: blur(8px); } 60% { opacity: 1; transform: scale(1.1); filter: blur(0); } 100% { opacity: 1; transform: scale(1); filter: blur(0); } }
+  @keyframes anim3-text-left { 0% { opacity: 0; transform: translateX(-55%); filter: blur(4px); } 100% { opacity: 1; transform: translateX(0); filter: blur(0); } }
+  @keyframes anim3-text-right { 0% { opacity: 0; transform: translateX(55%); filter: blur(4px); } 100% { opacity: 1; transform: translateX(0); filter: blur(0); } }
+  @keyframes anim3-sub { 0% { opacity: 0; transform: translateY(40%); filter: blur(6px) scale(.9); } 100% { opacity: 1; transform: translateY(0); filter: blur(0) scale(1); } }
+
+  /* 方案 5 · 最初经典（关键帧里不用 cqw，见下方命名约定） */
+  @keyframes anim5-original-logo { 0% { opacity: 0; transform: translateY(25%) scale(.94); filter: blur(10px); } 55% { opacity: 1; filter: blur(0); } 100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
+  @keyframes anim5-original-char { 0% { opacity: 0; transform: translateY(40%); filter: blur(5px); } 100% { opacity: 1; transform: translateY(0); filter: blur(0); } }
+
+  /* ==================================================
+     方案触发
+     ================================================== */
+  .play-1 .logo-icon {
+    animation: anim1-icon var(--dur-icon) cubic-bezier(.16, 1, .3, 1) both;
+  }
+  .play-1 .icon-box {
+    animation: anim1-breathe 4s ease-in-out var(--dur-icon) infinite;
+  }
+  .play-1 .logo-text span {
+    animation: anim1-text var(--dur-text) cubic-bezier(.16, 1, .3, 1) both;
+    animation-delay: calc(var(--delay-text) + var(--i) * var(--stagger-text));
+  }
+  .play-1 .tagline span {
+    animation: anim1-text var(--dur-sub) cubic-bezier(.16, 1, .3, 1) both;
+    animation-delay: calc(var(--delay-sub) + var(--i) * var(--stagger-sub));
+  }
+
+  .play-3 .logo-icon {
+    animation: anim3-icon var(--dur-icon) cubic-bezier(.34, 1.56, .64, 1) both;
+  }
+  .play-3 .logo-text span:nth-child(odd) {
+    animation: anim3-text-left var(--dur-text) cubic-bezier(.34, 1.56, .64, 1) both;
+    animation-delay: calc(var(--delay-text) + var(--i) * var(--stagger-text));
+  }
+  .play-3 .logo-text span:nth-child(even) {
+    animation: anim3-text-right var(--dur-text) cubic-bezier(.34, 1.56, .64, 1) both;
+    animation-delay: calc(var(--delay-text) + var(--i) * var(--stagger-text));
+  }
+  .play-3 .tagline span {
+    animation: anim3-sub var(--dur-sub) cubic-bezier(.16, 1, .3, 1) both;
+    animation-delay: calc(var(--delay-sub) + var(--i) * var(--stagger-sub));
+  }
+
+  .play-5 .logo-wrap {
+    animation: anim5-original-logo var(--dur-logo) cubic-bezier(.16, 1, .3, 1) both;
+  }
+  .play-5 .logo-icon, .play-5 .logo-text span { opacity: 1; animation: none; }
+  .play-5 .icon-box { animation: none; }
+  .play-5 .tagline span {
+    animation: anim5-original-char var(--dur-sub) cubic-bezier(.16, 1, .3, 1) both;
+    animation-delay: calc(var(--delay-sub) + var(--i) * var(--stagger-sub));
+  }
+
+  /* 减弱动效：直接落到终态（无限循环的光晕也要停，否则 0.01ms 一轮空转） */
+  @media (prefers-reduced-motion: reduce) {
+    .logo-wrap, .icon-box, .logo-icon, .logo-text span, .tagline span {
+      animation-duration: .01ms !important;
+      animation-delay: 0ms !important;
+      animation-iteration-count: 1 !important;
     }
   }
 
-  /* ================= 右上角固定参数面板（与仓库其余实验同族） ================= */
-  .panel{
-    position:fixed; top:16px; right:16px; width:272px;
-    max-height:calc(100vh - 32px); overflow-y:auto;
-    padding:14px 16px 16px;
-    background:rgba(26,8,16,.72);
-    -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px);
-    border:1px solid rgba(255,59,107,.20);
-    border-radius:16px;
-    color:#e9d3da;
-    font:12px/1.4 system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
-    box-shadow:0 18px 50px rgba(0,0,0,.65);
-    user-select:none;
-    z-index:10;
-  }
-  .head{ margin-bottom:12px; }
-  .head h1{ font-size:13px; font-weight:600; letter-spacing:.06em; color:#fff0f4; }
-  .head h1::before{
-    content:""; display:inline-block; width:6px; height:6px; border-radius:50%;
-    background:var(--acc); margin-right:8px; vertical-align:1px;
-    box-shadow:0 0 10px var(--acc);
-  }
-  .head .sub{ margin-top:5px; font-size:10.5px; color:#8d6472; line-height:1.5; }
-
-  .section-title{
-    margin:16px 0 10px; padding-top:12px;
-    border-top:1px solid rgba(255,59,107,.12);
-    font-size:11px; color:#b47a89; letter-spacing:.1em; font-weight:600;
-  }
-  .section-title:first-of-type{ border-top:none; margin-top:4px; padding-top:0; }
-
-  .row-ctrl{ margin-bottom:10px; }
-  .lbl{ display:flex; justify-content:space-between; margin-bottom:5px; color:#b58a95; font-size:11px; }
-  .lbl .val{ color:var(--acc); font-variant-numeric:tabular-nums; font-weight:500; }
-
-  input[type=range]{
-    -webkit-appearance:none; appearance:none;
-    width:100%; height:3px; border-radius:3px;
-    background:rgba(255,59,107,.16); outline:none; cursor:pointer; display:block;
-  }
-  input[type=range]::-webkit-slider-thumb{
-    -webkit-appearance:none; width:13px; height:13px; border-radius:50%;
-    background:var(--acc); border:2px solid #14030a;
-    box-shadow:0 0 8px rgba(255,59,107,.75); transition:transform .15s;
-  }
-  input[type=range]::-webkit-slider-thumb:hover{ transform:scale(1.25); }
-  input[type=range]::-moz-range-thumb{
-    width:13px; height:13px; border-radius:50%; background:var(--acc);
-    border:2px solid #14030a; box-shadow:0 0 8px rgba(255,59,107,.75);
-  }
-
-  button{
-    background:rgba(255,59,107,.07); color:#b58a95;
-    border:1px solid rgba(255,59,107,.20); border-radius:8px;
-    padding:7px 10px; font-size:12px; font-family:inherit; cursor:pointer;
-    transition:background .18s, border-color .18s, color .18s;
-  }
-  button:hover{ background:rgba(255,59,107,.14); border-color:rgba(255,59,107,.45); color:#ffd9e2; }
-  button.active{
-    background:rgba(255,59,107,.20);
-    border-color:var(--acc);
-    color:#fff0f4;
-    box-shadow:0 0 14px rgba(255,59,107,.30);
-  }
-
-  .seg{ display:flex; gap:6px; }
-  .seg button{ flex:1; padding:7px 2px; font-size:11px; white-space:nowrap; }
-  .seg-3 button{ font-size:10.5px; }
-  #btnReplay{
-    background:rgba(255,59,107,.24); border-color:rgba(255,59,107,.55);
-    color:#fff; font-weight:500;
-  }
-  #btnReplay:hover{ background:rgba(255,59,107,.36); border-color:var(--acc); }
-
-  /* 显示开关 / 取色：标签在左，控件在右 */
-  .hrow{ display:flex; align-items:center; justify-content:space-between; }
-  .hrow .stxt{ color:#b58a95; font-size:11px; }
-
-  input[type=checkbox]{
-    appearance:none; -webkit-appearance:none;
-    width:34px; height:18px; border-radius:9px; flex:0 0 auto;
-    background:rgba(255,59,107,.14);
-    position:relative; cursor:pointer; outline:none;
-    transition:background .2s;
-  }
-  input[type=checkbox]::after{
-    content:''; position:absolute; top:2px; left:2px;
-    width:14px; height:14px; border-radius:50%;
-    background:#b47a89; transition:all .2s;
-  }
-  input[type=checkbox]:checked{ background:rgba(255,59,107,.30); }
-  input[type=checkbox]:checked::after{
-    left:18px; background:var(--acc);
-    box-shadow:0 0 8px rgba(255,59,107,.9);
-  }
-
-  input[type=color]{
-    width:34px; height:22px; padding:0; flex:0 0 auto;
-    border:1px solid rgba(255,59,107,.30);
-    border-radius:6px; background:none; cursor:pointer;
-  }
-  input[type=color]::-webkit-color-swatch-wrapper{ padding:2px; }
-  input[type=color]::-webkit-color-swatch{ border:none; border-radius:4px; }
-
-  .hint{ margin-top:12px; font-size:10.5px; color:#7d5a66; line-height:1.6; }
-
-  @media (max-width:640px){
-    .panel{ width:auto; left:12px; right:12px; top:auto; bottom:12px; max-height:52vh; }
+  /* 窄屏改为上下布局，画布保持 16:9 */
+  @media (max-width: 900px) {
+    body { flex-direction: column; }
+    .canvas-area { padding: 16px; flex: 0 0 auto; }
+    .control-panel {
+      width: auto; flex: 1 1 auto; border-left: none; border-top: 1px solid #333;
+      box-shadow: 0 -5px 20px rgba(0, 0, 0, .3); height: 100%;
+    }
   }
 </style>
 </head>
 <body>
 
-<div class="stage" id="stage"></div>
-
-<aside class="panel">
-  <div class="head">
-    <h1>启动动画 · Launch Splash</h1>
-    <div class="sub">品牌 Logo 入场动效 · 3 套方案 / 节奏与配色可调</div>
-  </div>
-
-  <div class="section-title">入场方案</div>
-  <div class="row-ctrl">
-    <div class="seg seg-3" id="segScheme">
-      <button class="active" data-v="1">呼吸微光</button>
-      <button data-v="3">弹性错位</button>
-      <button data-v="5">经典浮现</button>
+  <div class="canvas-area">
+    <div class="screen">
+      <div class="content" id="content">
+        <div class="logo-wrap">
+          <span class="icon-box">
+            <svg class="logo-icon" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="gradient" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#FF3366" /><stop offset="1" stop-color="#B224EF" />
+                </linearGradient>
+              </defs>
+              <circle class="icon-bg" cx="60" cy="60" r="56" />
+              <path class="icon-stroke" d="M45 75C45 83.2843 51.7157 90 60 90C68.2843 90 75 83.2843 75 75V45C75 36.7157 68.2843 30 60 30C51.7157 30 45 36.7157 45 45V75Z" />
+              <circle class="icon-dot" cx="60" cy="60" r="8" />
+            </svg>
+          </span>
+          <div class="logo-text">
+            <span style="--i:0">全</span><span style="--i:1">民</span><span style="--i:2">K</span><span style="--i:3">歌</span>
+          </div>
+        </div>
+        <div class="tagline">
+          <span style="--i:0">随</span><span style="--i:1">时</span><span style="--i:2">随</span><span style="--i:3">地</span>
+          <span style="--i:4">想</span><span style="--i:5">唱</span><span style="--i:6">就</span><span style="--i:7">唱</span>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="section-title">节奏</div>
-  <div class="row-ctrl">
-    <div class="lbl"><span>动画倍速</span><span class="val" id="vSpd">×1.00</span></div>
-    <input type="range" id="rSpd" min="0.3" max="2" step="0.05" value="1">
-  </div>
-  <div class="row-ctrl">
-    <div class="lbl"><span>字符间隔</span><span class="val" id="vGap">80ms</span></div>
-    <input type="range" id="rGap" min="0" max="160" step="10" value="80">
-  </div>
-  <div class="row-ctrl">
-    <div class="lbl"><span>副标题延迟</span><span class="val" id="vSub">600ms</span></div>
-    <input type="range" id="rSub" min="0" max="1500" step="50" value="600">
-  </div>
+  <div class="control-panel">
+    <div class="panel-title">动效参数调试</div>
+    <div class="panel-desc">拖拽滑块调参（步长 100ms），松手自动重播</div>
 
-  <div class="section-title">外观</div>
-  <div class="row-ctrl hrow">
-    <span class="stxt">渐变起色</span>
-    <input type="color" id="c1" value="#FF3366">
-  </div>
-  <div class="row-ctrl hrow">
-    <span class="stxt">渐变终色</span>
-    <input type="color" id="c2" value="#B224EF">
-  </div>
-  <div class="row-ctrl hrow">
-    <span class="stxt">显示副标题</span>
-    <input type="checkbox" id="ckSub" checked>
-  </div>
+    <div class="tabs" id="tabs">
+      <button class="tab-btn active" data-anim="1">呼吸微光</button>
+      <button class="tab-btn" data-anim="3">弹性错位</button>
+      <button class="tab-btn" data-anim="5">最初经典</button>
+    </div>
 
-  <div class="section-title">播放</div>
-  <div class="row-ctrl hrow">
-    <span class="stxt">自动轮播方案</span>
-    <input type="checkbox" id="ckAuto" checked>
-  </div>
-  <div class="row-ctrl">
-    <div class="lbl"><span>轮播间隔</span><span class="val" id="vDwell">6.0s</span></div>
-    <input type="range" id="rDwell" min="2" max="12" step="0.5" value="6">
-  </div>
-  <div class="row-ctrl">
-    <div class="seg"><button id="btnReplay">▶ 重播当前方案</button></div>
-  </div>
+    <!-- 方案 1 / 3 专有参数 -->
+    <div id="group-icon-text">
+      <div class="slider-group">
+        <div class="slider-header"><span>图标出现时长</span><span class="slider-value" id="label-icon">500ms</span></div>
+        <input type="range" id="slider-icon" min="100" max="3000" step="100" value="500">
+      </div>
+      <div class="slider-group">
+        <div class="slider-header"><span>Logo 文字时长</span><span class="slider-value" id="label-text">500ms</span></div>
+        <input type="range" id="slider-text" min="100" max="3000" step="100" value="500">
+      </div>
+      <div class="slider-group">
+        <div class="slider-header"><span>图标后文字延迟</span><span class="slider-value" id="label-delay-text">0ms</span></div>
+        <input type="range" id="slider-delay-text" min="0" max="2000" step="100" value="0">
+      </div>
+      <div class="slider-group">
+        <div class="slider-header"><span>文字逐字错位</span><span class="slider-value" id="label-stagger-text">0ms</span></div>
+        <input type="range" id="slider-stagger-text" min="0" max="500" step="100" value="0">
+      </div>
+    </div>
 
-  <div class="hint">调整任一参数都会从头重播，方便对比节奏差异。</div>
-</aside>
+    <!-- 方案 5 专有参数 -->
+    <div id="group-logo" style="display:none">
+      <div class="slider-group">
+        <div class="slider-header"><span>整体 Logo 时长</span><span class="slider-value" id="label-logo">1000ms</span></div>
+        <input type="range" id="slider-logo" min="100" max="3000" step="100" value="1000">
+      </div>
+    </div>
+
+    <!-- 公共参数：副标题 -->
+    <div class="slider-group" style="margin-top:8px">
+      <div class="slider-header"><span>副标题时长</span><span class="slider-value" id="label-sub">400ms</span></div>
+      <input type="range" id="slider-sub" min="100" max="3000" step="100" value="400">
+    </div>
+    <div class="slider-group">
+      <div class="slider-header"><span>副标题起始延迟</span><span class="slider-value" id="label-delay-sub">400ms</span></div>
+      <input type="range" id="slider-delay-sub" min="0" max="3000" step="100" value="400">
+    </div>
+    <div class="slider-group">
+      <div class="slider-header"><span>副标题逐字错位</span><span class="slider-value" id="label-stagger-sub">0ms</span></div>
+      <input type="range" id="slider-stagger-sub" min="0" max="500" step="100" value="0">
+    </div>
+
+    <div class="total-duration-panel">
+      <span class="total-label">预计总时长</span>
+      <span class="total-value" id="total-duration">0.0s</span>
+    </div>
+
+    <button class="replay-btn" id="replayBtn">▶ 重新播放动画</button>
+  </div>
 
 <script>
 (() => {
   "use strict";
 
-  /* ================= 参数 ================= */
-  const P = {
-    scheme: 1,          // 入场方案：1 呼吸微光 / 3 弹性错位 / 5 经典浮现
-    spd:    1,          // 动画倍速
-    gap:    80,         // 字符入场间隔（ms）
-    subDelay: 600,      // 副标题入场延迟（ms）
-    c1:  '#FF3366',     // 渐变起色
-    c2:  '#B224EF',     // 渐变终色
-    showSub: true,      // 是否显示副标题
-    auto:   true,       // 是否自动轮播方案
-    dwell:  6           // 轮播间隔（秒）
-  };
+  const LOGO_TEXT_COUNT = 4;   // 全民K歌
+  const SUB_TEXT_COUNT  = 8;   // 随时随地想唱就唱
 
-  const SCHEMES = [1, 3, 5];
-  const stage = document.getElementById('stage');
   const $ = id => document.getElementById(id);
+  const root = document.documentElement;
 
-  /* ================= 结构模板（每次重播整体重建，动画才会从 0 开始） =================
-     说明：重播不能只重置 class —— 同一元素上的 CSS 动画重新挂同名 class 不会重新计时，
-     必须换掉节点本身（浏览器才会当作新的动画实例）。
-  */
-  function lockupHTML(showSub) {
-    const word = ['全', '民', 'K', '歌']
-      .map((c, i) => `<span style="--i:${i}">${c}</span>`).join('');
-    const tag = '随时随地想唱就唱'.split('')
-      .map((c, i) => `<span style="--i:${i}">${c}</span>`).join('');
+  const contentTemplate = $('content').outerHTML;   // 干净副本：不含 play-N 类
+  const tabBtns   = Array.from(document.querySelectorAll('.tab-btn'));
+  const groupIcon = $('group-icon-text');
+  const groupLogo = $('group-logo');
 
-    return `
-    <div class="lockup">
-      <div class="row">
-        <div class="mark-wrap">
-          <svg class="mark" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="brandGrad" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
-                <stop class="stop-a" offset="0" />
-                <stop class="stop-b" offset="1" />
-              </linearGradient>
-            </defs>
-            <circle class="mark-bg" cx="60" cy="60" r="56" />
-            <path class="mark-stroke" d="M45 75C45 83.2843 51.7157 90 60 90C68.2843 90 75 83.2843 75 75V45C75 36.7157 68.2843 30 60 30C51.7157 30 45 36.7157 45 45V75Z" />
-            <circle class="mark-dot" cx="60" cy="60" r="8" />
-          </svg>
-        </div>
-        <div class="word" role="img" aria-label="全民K歌">${word}</div>
-      </div>
-      <div class="tagline"${showSub ? '' : ' style="visibility:hidden"'}>${tag}</div>
-    </div>`;
+  let currentAnim = 1;
+
+  /* ================= 预计总时长 =================
+     三条链取结束时刻的最大值，每条链 = 延迟 +（字数-1）× 逐字错位 + 时长
+  ============================================== */
+  function calculateTotalDuration() {
+    const durIcon    = +$('slider-icon').value;
+    const durText    = +$('slider-text').value;
+    const delayText  = +$('slider-delay-text').value;
+    const staggerTxt = +$('slider-stagger-text').value;
+    const durLogo    = +$('slider-logo').value;
+
+    const durSub     = +$('slider-sub').value;
+    const delaySub   = +$('slider-delay-sub').value;
+    const staggerSub = +$('slider-stagger-sub').value;
+
+    const subEnd = delaySub + (SUB_TEXT_COUNT - 1) * staggerSub + durSub;
+
+    let maxDuration;
+    if (currentAnim === 5) {
+      maxDuration = Math.max(durLogo, subEnd);
+    } else {
+      const textEnd = delayText + (LOGO_TEXT_COUNT - 1) * staggerTxt + durText;
+      maxDuration = Math.max(durIcon, textEnd, subEnd);
+    }
+
+    $('total-duration').innerText = (maxDuration / 1000).toFixed(1) + 's';
   }
 
-  /* ================= 应用参数（CSS 变量交给样式层） ================= */
-  const rootStyle = document.documentElement.style;
-  function applyParams() {
-    rootStyle.setProperty('--spd', P.spd);
-    rootStyle.setProperty('--gap', P.gap + 'ms');
-    rootStyle.setProperty('--subDelay', P.subDelay + 'ms');
-    rootStyle.setProperty('--c1', P.c1);
-    rootStyle.setProperty('--c2', P.c2);
+  /* ================= 重播 =================
+     CSS 动画不认「重新加同名 class」，必须换节点才会从 0 计时
+  ========================================= */
+  function forceReplay(animType) {
+    currentAnim = Number(animType);   // tab 传进来是字符串，统一转数字，总时长分支才不会走错
+
+    const oldContent = $('content');
+    const holder = document.createElement('div');
+    holder.innerHTML = contentTemplate;
+    const newContent = holder.firstElementChild;
+
+    oldContent.parentNode.replaceChild(newContent, oldContent);
+
+    void newContent.offsetWidth;
+    newContent.classList.add('play-' + currentAnim);
+
+    tabBtns.forEach(btn => btn.classList.toggle('active', +btn.dataset.anim === currentAnim));
+
+    // 方案 5 只调「整体 Logo」，隐藏图标 / 文字那组
+    const isLogoOnly = currentAnim === 5;
+    groupIcon.style.display = isLogoOnly ? 'none' : 'block';
+    groupLogo.style.display = isLogoOnly ? 'block' : 'none';
+
+    calculateTotalDuration();
   }
 
-  /* ================= 重播 ================= */
-  let autoTimer = null;
+  tabBtns.forEach(btn => btn.addEventListener('click', () => forceReplay(btn.dataset.anim)));
+  $('replayBtn').addEventListener('click', () => forceReplay(currentAnim));
 
-  function play() {
-    applyParams();
-    stage.innerHTML = lockupHTML(P.showSub);
-    stage.firstElementChild.classList.add('play-' + P.scheme);
-    restartAutoPlay();
+  /* ================= 滑杆 → CSS 变量 =================
+     拖动时立刻更新数值与总时长，停手 300ms 后再重播，避免每帧重建 DOM
+  ================================================= */
+  let replayTimer = null, rafId = 0;
+
+  function bindSlider(sliderId, labelId, cssVar) {
+    const slider = $(sliderId), label = $(labelId);
+    slider.addEventListener('input', () => {
+      label.innerText = slider.value + 'ms';
+      root.style.setProperty(cssVar, slider.value + 'ms');
+      calculateTotalDuration();
+
+      clearTimeout(replayTimer);
+      replayTimer = setTimeout(() => {
+        cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => forceReplay(currentAnim));
+      }, 300);
+    });
   }
 
-  /* 参数变化防抖：拖动滑杆期间不重建，停手 120ms 后再走一帧 rAF，避免重建风暴 */
-  let debounceTimer = null, rafId = 0;
-  function requestReplay() {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(play);
-    }, 120);
-  }
-
-  /* ================= 方案切换 ================= */
-  function setScheme(v, replay = true) {
-    P.scheme = v;
-    document.querySelectorAll('#segScheme button')
-      .forEach(b => b.classList.toggle('active', +b.dataset.v === v));
-    if (replay) play();
-  }
-
-  /* ================= 自动轮播 ================= */
-  let hovering = false;          // 鼠标停在面板上时暂停轮播，方便安心调参
-
-  function restartAutoPlay() {
-    clearInterval(autoTimer);
-    if (!P.auto || hovering) return;
-    autoTimer = setInterval(() => {
-      const i = SCHEMES.indexOf(P.scheme);
-      setScheme(SCHEMES[(i + 1) % SCHEMES.length]);
-    }, P.dwell * 1000);
-  }
-
-  /* ================= 控件绑定 ================= */
-  $('segScheme').addEventListener('click', e => {
-    const btn = e.target.closest('button');
-    if (btn) setScheme(+btn.dataset.v);
-  });
-
-  $('btnReplay').addEventListener('click', play);
-
-  $('rSpd').addEventListener('input', e => {
-    P.spd = +e.target.value;
-    $('vSpd').textContent = '×' + P.spd.toFixed(2);
-    requestReplay();
-  });
-
-  $('rGap').addEventListener('input', e => {
-    P.gap = +e.target.value;
-    $('vGap').textContent = P.gap + 'ms';
-    requestReplay();
-  });
-
-  $('rSub').addEventListener('input', e => {
-    P.subDelay = +e.target.value;
-    $('vSub').textContent = P.subDelay + 'ms';
-    requestReplay();
-  });
-
-  $('c1').addEventListener('input', e => { P.c1 = e.target.value; requestReplay(); });
-  $('c2').addEventListener('input', e => { P.c2 = e.target.value; requestReplay(); });
-
-  $('ckSub').addEventListener('change', e => {
-    P.showSub = e.target.checked;
-    requestReplay();
-  });
-
-  $('ckAuto').addEventListener('change', e => {
-    P.auto = e.target.checked;
-    restartAutoPlay();
-  });
-
-  $('rDwell').addEventListener('input', e => {
-    P.dwell = +e.target.value;
-    $('vDwell').textContent = P.dwell.toFixed(1) + 's';
-    restartAutoPlay();
-  });
-
-  /* 鼠标停在面板上时暂停轮播，离开后继续 */
-  const panel = document.querySelector('.panel');
-  panel.addEventListener('mouseenter', () => { hovering = true; clearInterval(autoTimer); });
-  panel.addEventListener('mouseleave', () => { hovering = false; restartAutoPlay(); });
+  bindSlider('slider-icon',         'label-icon',         '--dur-icon');
+  bindSlider('slider-text',         'label-text',         '--dur-text');
+  bindSlider('slider-logo',         'label-logo',         '--dur-logo');
+  bindSlider('slider-delay-text',   'label-delay-text',   '--delay-text');
+  bindSlider('slider-stagger-text', 'label-stagger-text', '--stagger-text');
+  bindSlider('slider-sub',          'label-sub',          '--dur-sub');
+  bindSlider('slider-delay-sub',    'label-delay-sub',    '--delay-sub');
+  bindSlider('slider-stagger-sub',  'label-stagger-sub',  '--stagger-sub');
 
   /* ================= 启动 ================= */
-  play();
+  forceReplay(1);
 })();
 </script>
 </body>
