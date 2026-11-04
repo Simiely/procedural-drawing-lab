@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>充电图标 · Charging Icon</title>
+<style>
+  :root{ --bg:#0b0a09; --panel:#141210; --line:#241f1b; --fg:#e9e4dd; --dim:#8d857c; --accent:#00d050; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ width:100%; height:100%; overflow:hidden; background:#000; }
+  body{ color:var(--fg); font:12px/1.5 -apple-system,"SF Pro Text","PingFang SC","Microsoft YaHei",sans-serif; }
+  #cv{ display:block; position:absolute; inset:0; touch-action:none; }
+
+  .panel{
+    position:fixed; top:16px; right:16px; width:300px;
+    max-height:calc(100vh - 32px); overflow-y:auto;
+    background:rgba(20,18,16,.88);
+    -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px);
+    border:1px solid var(--line); border-radius:14px;
+    padding:10px 12px 12px;
+    box-shadow:0 18px 50px rgba(0,0,0,.65);
+    user-select:none; z-index:10;
+  }
+  .panel::-webkit-scrollbar{ width:6px; }
+  .panel::-webkit-scrollbar-thumb{ background:#2e2823; border-radius:3px; }
+  .head{ margin-bottom:8px; }
+  .head h1{ font-size:13px; font-weight:600; letter-spacing:.04em; color:#eaf1ff; }
+  .head h1::before{
+    content:""; display:inline-block; width:6px; height:6px; border-radius:50%;
+    background:var(--accent); margin-right:8px; vertical-align:1px;
+    box-shadow:0 0 10px var(--accent);
+  }
+  .head .sub{ margin-top:4px; color:var(--dim); font-size:10.5px; line-height:1.5; }
+
+  .tabs{ display:grid; grid-template-columns:repeat(5,1fr); gap:3px; margin:0 0 10px;
+         position:sticky; top:-10px; background:#141210; padding:4px 0 6px; z-index:3; }
+  .tab{ padding:6px 2px; border-radius:7px; border:1px solid var(--line); background:#1b1815;
+        color:#8d857c; font-size:11px; cursor:pointer; transition:.15s; white-space:nowrap; font-family:inherit; }
+  .tab:hover{ color:#cdc5bb; border-color:#3a332d; }
+  .tab.active{ color:#8ff0b6; border-color:rgba(0,208,80,.55); background:#132019; }
+  .tab-pane{ display:none; }
+  .tab-pane.active{ display:block; }
+
+  .ctl{ margin:0 0 8px; }
+  .ctl label{ display:flex; justify-content:space-between; font-size:11.5px; color:#b8b0a6; margin-bottom:3px; }
+  .ctl label b{ color:var(--fg); font-weight:600; font-variant-numeric:tabular-nums; }
+  .ctl .hint{ font-size:10.5px; color:#5f5851; margin-top:3px; line-height:1.4; }
+  input[type=range]{ width:100%; -webkit-appearance:none; appearance:none; height:3px; border-radius:3px;
+                     background:#3a332d; outline:none; display:block; }
+  input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:12px; height:12px; border-radius:50%;
+       background:var(--accent); cursor:pointer; box-shadow:0 0 0 3px rgba(0,208,80,.16); }
+  input[type=range]::-moz-range-thumb{ width:12px; height:12px; border-radius:50%; border:none;
+       background:var(--accent); cursor:pointer; box-shadow:0 0 0 3px rgba(0,208,80,.16); }
+
+  .chk{ display:flex; align-items:center; gap:8px; margin:0 0 6px; cursor:pointer; font-size:12px; color:#cdc5bb; user-select:none; }
+  .chk input{ accent-color:var(--accent); width:14px; height:14px; cursor:pointer; margin:0; }
+  .chk span{ flex:1; }
+  .chk .dot{ width:6px; height:6px; border-radius:50%; background:#00d050; opacity:.28; transition:opacity .2s,box-shadow .2s; }
+  .chk input:checked ~ .dot{ opacity:1; box-shadow:0 0 7px rgba(0,208,80,.85); }
+
+  .fx{ border:1px solid var(--line); border-radius:8px; margin:0 0 7px; overflow:hidden; background:#121110; }
+  .fx-head{ display:flex; align-items:center; gap:6px; padding:6px 9px; cursor:pointer; user-select:none; }
+  .fx-head:hover{ background:#181614; }
+  .fx-head .chk{ margin:0; flex:1; }
+  .fx-chev{ font-size:9px; color:#5a534c; transition:transform .18s; line-height:1; }
+  .fx.collapsed .fx-chev{ transform:rotate(-90deg); }
+  .fx-body{ padding:2px 9px 7px; border-top:1px solid var(--line); }
+  .fx-body.hidden{ display:none; }
+  .fx-body.off{ opacity:.32; pointer-events:none; }
+
+  .btn{ width:100%; padding:7px; border-radius:8px; border:1px solid var(--line); background:#1b1815;
+        color:var(--fg); font-size:12px; cursor:pointer; margin-top:8px; font-family:inherit; }
+  .btn:hover{ border-color:#3a332d; color:#8ff0b6; }
+  .btn.on{ border-color:rgba(0,208,80,.55); color:#8ff0b6; background:#132019; }
+  .row2{ display:flex; gap:6px; }
+  .row2 .btn{ flex:1; margin-top:8px; }
+  textarea{ width:100%; height:72px; margin-top:8px; background:#0f0d0c; border:1px solid var(--line);
+            border-radius:8px; color:#9fe8bd; font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+            padding:8px; resize:vertical; outline:none; }
+  textarea::-webkit-scrollbar{ width:6px; }
+  textarea::-webkit-scrollbar-thumb{ background:#2e2823; border-radius:3px; }
+  .note{ margin-top:10px; font-size:10.5px; color:#6f675f; line-height:1.6; border-top:1px solid var(--line); padding-top:9px; }
+  .seedline{ margin-top:8px; font-size:10.5px; color:#8ff0b6; font-variant-numeric:tabular-nums; }
+
+  @media (max-width:640px){
+    .panel{ width:auto; left:12px; right:12px; top:auto; bottom:12px; max-height:56vh; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="cv"></canvas>
+
+<aside class="panel">
+  <div class="head">
+    <h1>充电图标 · Charging Icon</h1>
+    <div class="sub">粒子内聚 + 电线流光 · 单层白线 / 虚线流光 / 沿路径游动粒子 · 支持手动描摹路径</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="rhythm">节奏</button>
+    <button class="tab" data-tab="particles">粒子</button>
+    <button class="tab" data-tab="wire">流光</button>
+    <button class="tab" data-tab="icon">图标</button>
+    <button class="tab" data-tab="draw">绘制</button>
+  </div>
+
+  <div class="tab-pane active" id="pane-rhythm">
+    <div class="ctl"><label>整体速度 <b id="vSpeed">1.35×</b></label><input id="speed" type="range" min="20" max="300" value="135"></div>
+    <div class="ctl"><label>呼吸幅度 <b id="vAmp">14%</b></label><input id="amp" type="range" min="0" max="14" value="14"></div>
+    <div class="ctl"><label>速度落差 <b id="vGrad">0.43</b></label><input id="grad" type="range" min="0" max="100" value="43"></div>
+  </div>
+
+  <div class="tab-pane" id="pane-particles">
+    <div class="ctl"><label>粒子数量 <b id="vCount">110</b></label><input id="count" type="range" min="0" max="260" value="110"></div>
+    <div class="ctl"><label>横向半径 <b id="vRx">116</b></label><input id="rx" type="range" min="60" max="260" value="116"></div>
+    <div class="ctl"><label>纵向半径 <b id="vRy">116</b></label><input id="ry" type="range" min="60" max="260" value="116"></div>
+  </div>
+
+  <div class="tab-pane" id="pane-wire">
+    <label class="chk"><input type="checkbox" id="wireOn" data-key="wireOn" checked><span>流光总开关</span><i class="dot"></i></label>
+
+    <div class="fx collapsed" id="fxWireLine">
+      <div class="fx-head">
+        <label class="chk"><input type="checkbox" id="wireLineOn" data-key="wireLineOn" checked><span>线条层</span><i class="dot"></i></label>
+        <span class="fx-chev">▾</span>
+      </div>
+      <div class="fx-body hidden" id="wireLineCtl">
+        <div class="ctl"><label>路径粗细 <b id="vWireWidth">5.0</b></label><input id="wireWidth" type="range" min="1" max="16" step="0.5" value="5.0"></div>
+        <div class="ctl"><label>路径透明度 <b id="vWirePathAlpha">0.20</b></label><input id="wirePathAlpha" type="range" min="5" max="100" value="20"></div>
+        <div class="ctl"><label>流光速度 <b id="vWireSpeed">0.8</b></label><input id="wireSpeed" type="range" min="10" max="300" value="80"></div>
+        <div class="ctl"><label>流光亮度 <b id="vWireAlpha">0.29</b></label><input id="wireAlpha" type="range" min="5" max="100" value="29"></div>
+        <div class="ctl"><label>虚线长度 <b id="vWireDashLen">40</b></label><input id="wireDashLen" type="range" min="5" max="80" value="40"></div>
+        <div class="ctl"><label>虚线间隔 <b id="vWireGapLen">49</b></label><input id="wireGapLen" type="range" min="4" max="120" value="49"></div>
+      </div>
+    </div>
+
+    <div class="fx collapsed" id="fxWireParticle">
+      <div class="fx-head">
+        <label class="chk"><input type="checkbox" id="wirePartOn" data-key="wirePartOn" checked><span>粒子层</span><i class="dot"></i></label>
+        <span class="fx-chev">▾</span>
+      </div>
+      <div class="fx-body hidden" id="wirePartCtl">
+        <div class="ctl"><label>粒子数量 <b id="vWirePartCount">32</b></label><input id="wirePartCount" type="range" min="0" max="80" value="32"></div>
+        <div class="ctl"><label>粒子速度 <b id="vWirePartSpeed">1.9</b></label><input id="wirePartSpeed" type="range" min="20" max="300" value="190"></div>
+        <div class="ctl"><label>粒子大小 <b id="vWirePartSize">0.4</b></label><input id="wirePartSize" type="range" min="20" max="300" value="40"></div>
+        <div class="ctl"><label>拖尾长度 <b id="vWirePartTrail">3</b></label><input id="wirePartTrail" type="range" min="0" max="20" value="3"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-pane" id="pane-icon">
+    <div class="fx" id="fxPulse">
+      <div class="fx-head">
+        <label class="chk"><input type="checkbox" id="pulseOn" data-key="pulseOn" checked><span>能量脉冲</span><i class="dot"></i></label>
+        <span class="fx-chev">▾</span>
+      </div>
+      <div class="fx-body" id="pulseCtl">
+        <div class="ctl"><label>脉冲频率 <b id="vPulseRate">1.35</b></label><input id="pulseRate" type="range" min="30" max="500" value="135"></div>
+        <div class="ctl"><label>脉冲强度 <b id="vPulseAmp">8</b></label><input id="pulseAmp" type="range" min="2" max="30" value="8"></div>
+      </div>
+    </div>
+
+    <div class="fx collapsed" id="fxWave">
+      <div class="fx-head">
+        <label class="chk"><input type="checkbox" id="waveOn" data-key="waveOn" checked><span>能量光波</span><i class="dot"></i></label>
+        <span class="fx-chev">▾</span>
+      </div>
+      <div class="fx-body hidden" id="waveCtl">
+        <div class="ctl"><label>光波间隔 <b id="vWaveInterval">1.40s</b></label><input id="waveInterval" type="range" min="30" max="400" value="140"></div>
+        <div class="ctl"><label>扩散速度 <b id="vWaveSpeed">95</b></label><input id="waveSpeed" type="range" min="20" max="260" value="95"></div>
+        <div class="ctl"><label>光波粗细 <b id="vWaveWidth">2.6</b></label><input id="waveWidth" type="range" min="1" max="8" step="0.2" value="2.6"></div>
+      </div>
+    </div>
+
+    <div class="fx collapsed" id="fxStroke">
+      <div class="fx-head">
+        <label class="chk"><input type="checkbox" id="strokeOn" data-key="strokeOn" checked><span>描边流动</span><i class="dot"></i></label>
+        <span class="fx-chev">▾</span>
+      </div>
+      <div class="fx-body hidden" id="strokeCtl">
+        <div class="ctl"><label>流动速度 <b id="vStrokeSpeed">100</b></label><input id="strokeSpeed" type="range" min="20" max="420" value="100"></div>
+        <div class="ctl"><label>描边亮度 <b id="vStrokeAlpha">0.90</b></label><input id="strokeAlpha" type="range" min="20" max="100" value="90"></div>
+        <div class="ctl"><label>描边宽度 <b id="vStrokeWidth">1.3</b></label><input id="strokeWidth" type="range" min="0.5" max="3" step="0.1" value="1.3"></div>
+      </div>
+    </div>
+
+    <div class="fx collapsed" id="fxFloat">
+      <div class="fx-head">
+        <label class="chk"><input type="checkbox" id="floatOn" data-key="floatOn" checked><span>微浮动 / 倾斜</span><i class="dot"></i></label>
+        <span class="fx-chev">▾</span>
+      </div>
+      <div class="fx-body hidden" id="floatCtl">
+        <div class="ctl"><label>浮动幅度 <b id="vFloatAmp">2.5</b></label><input id="floatAmp" type="range" min="0" max="8" step="0.5" value="2.5"></div>
+        <div class="ctl"><label>倾斜幅度 <b id="vTiltAmp">1.2°</b></label><input id="tiltAmp" type="range" min="0" max="4" step="0.1" value="1.2"></div>
+        <div class="ctl"><label>浮动频率 <b id="vFloatRate">0.55</b></label><input id="floatRate" type="range" min="15" max="150" value="55"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-pane" id="pane-draw">
+    <label class="chk"><input type="checkbox" id="lineOn" data-key="lineOn" checked><span>显示矢量线</span><i class="dot"></i></label>
+    <div class="ctl"><label>路径粗细 <b id="vLineW">6.0</b></label><input id="lineW" type="range" min="1" max="16" step="0.5" value="6.0"></div>
+    <div class="ctl"><label>路径亮度 <b id="vLineA">0.85</b></label><input id="lineA" type="range" min="10" max="100" value="85"></div>
+
+    <button class="btn" id="traceBtn">手动描摹：关</button>
+    <div class="row2">
+      <button class="btn" id="undoPt">撤销</button>
+      <button class="btn" id="clearPt">清空</button>
+    </div>
+
+    <textarea id="out" spellcheck="false" placeholder="描摹后这里显示点集，可粘贴点集后点「应用文本」"></textarea>
+    <div class="row2">
+      <button class="btn" id="applyOut">应用文本</button>
+      <button class="btn" id="copyOut">复制数据</button>
+    </div>
+  </div>
+
+  <div class="row2">
+    <button class="btn" id="resetSeed">重置种子</button>
+    <button class="btn" id="toggle">暂停</button>
+  </div>
+  <div class="seedline" id="seedInfo">种子 #42 · 重置后分布可复现</div>
+  <div class="note">路径透明度独立控制白线的 alpha，与流光亮度分开；默认折叠线条层和粒子层。「绘制」页可手动描摹并导出点集。</div>
+</aside>
+
+<script>
+"use strict";
+(() => {
+/* ── 内置电线路径与充电图标矢量（原稿保留） ── */
+const BUILTIN_PATH = "M 232.18 163.00 C 231.40 163.00, 228.85 163.00, 227.49 163.00 C 226.12 163.00, 225.24 163.00, 223.98 163.00 C 222.71 163.00, 221.25 163.00, 219.88 163.00 C 218.52 163.00, 217.06 163.00, 215.79 163.00 C 214.52 163.00, 213.45 163.00, 212.28 163.00 C 211.11 163.00, 209.94 163.00, 208.77 163.00 C 207.60 163.00, 206.43 163.00, 205.26 163.00 C 204.09 163.00, 202.92 163.00, 201.75 163.00 C 200.58 163.00, 199.42 163.00, 198.25 163.00 C 197.08 163.00, 196.20 162.81, 194.74 163.00 C 193.27 163.20, 190.94 163.78, 189.47 164.17 C 188.01 164.56, 187.23 164.95, 185.96 165.34 C 184.70 165.73, 183.24 166.12, 181.87 166.51 C 180.51 166.90, 179.14 167.29, 177.78 167.68 C 176.41 168.07, 174.95 168.36, 173.68 168.85 C 172.42 169.34, 171.35 170.12, 170.18 170.60 C 169.01 171.09, 167.84 171.29, 166.67 171.77 C 165.50 172.26, 164.42 172.94, 163.16 173.53 C 161.89 174.11, 160.43 174.89, 159.06 175.28 C 157.70 175.67, 156.24 175.77, 154.97 175.87 C 153.70 175.97, 152.73 175.77, 151.46 175.87 C 150.19 175.97, 148.73 176.26, 147.37 176.45 C 146.00 176.65, 144.54 176.94, 143.27 177.04 C 142.01 177.14, 140.94 177.04, 139.77 177.04 C 138.60 177.04, 137.43 177.04, 136.26 177.04 C 135.09 177.04, 133.92 177.04, 132.75 177.04 C 131.58 177.04, 130.60 177.04, 129.24 177.04 C 127.88 177.04, 125.93 177.04, 124.56 177.04 C 123.20 177.04, 122.32 177.04, 121.05 177.04 C 119.79 177.04, 118.23 177.14, 116.96 177.04 C 115.69 176.94, 114.72 176.65, 113.45 176.45 C 112.18 176.26, 110.72 176.16, 109.36 175.87 C 107.99 175.58, 106.73 175.09, 105.26 174.70 C 103.80 174.31, 102.05 173.92, 100.58 173.53 C 99.12 173.14, 97.86 172.94, 96.49 172.36 C 95.13 171.77, 93.76 170.70, 92.40 170.02 C 91.03 169.34, 89.57 168.85, 88.30 168.27 C 87.04 167.68, 86.06 167.19, 84.80 166.51 C 83.53 165.83, 81.97 164.85, 80.70 164.17 C 79.43 163.49, 78.27 163.20, 77.19 162.42 C 76.12 161.64, 75.15 160.66, 74.27 159.49 C 73.39 158.32, 72.61 156.67, 71.93 155.40 C 71.25 154.13, 70.66 153.06, 70.18 151.89 C 69.69 150.72, 69.30 149.65, 69.01 148.38 C 68.71 147.12, 68.71 145.65, 68.42 144.29 C 68.13 142.92, 67.64 141.56, 67.25 140.20 C 66.86 138.83, 66.37 137.47, 66.08 136.10 C 65.79 134.74, 65.69 133.47, 65.50 132.01 C 65.30 130.55, 65.11 128.69, 64.91 127.33 C 64.72 125.97, 64.52 125.09, 64.33 123.82 C 64.13 122.55, 63.84 120.99, 63.74 119.73 C 63.65 118.46, 63.94 117.39, 63.74 116.22 C 63.55 115.05, 62.87 113.88, 62.57 112.71 C 62.28 111.54, 62.38 110.57, 61.99 109.20 C 61.60 107.84, 60.72 105.99, 60.23 104.52 C 59.75 103.06, 59.65 101.79, 59.06 100.43 C 58.48 99.06, 57.50 97.70, 56.73 96.34 C 55.95 94.97, 55.36 93.70, 54.39 92.24 C 53.41 90.78, 51.85 88.93, 50.88 87.56 C 49.90 86.20, 49.32 85.22, 48.54 84.06 C 47.76 82.89, 46.98 81.72, 46.20 80.55 C 45.42 79.38, 44.64 78.21, 43.86 77.04 C 43.08 75.87, 42.40 74.70, 41.52 73.53 C 40.64 72.36, 39.57 71.09, 38.60 70.02 C 37.62 68.95, 36.65 67.97, 35.67 67.10 C 34.70 66.22, 33.63 65.63, 32.75 64.76 C 31.87 63.88, 31.29 62.71, 30.41 61.83 C 29.53 60.96, 28.46 60.27, 27.49 59.49 C 26.51 58.71, 25.54 58.03, 24.56 57.15 C 23.59 56.28, 22.71 55.11, 21.64 54.23 C 20.57 53.35, 19.20 52.67, 18.13 51.89 C 17.06 51.11, 16.18 50.33, 15.20 49.55 C 14.23 48.77, 13.26 48.09, 12.28 47.21 C 11.31 46.34, 10.33 45.17, 9.36 44.29 C 8.38 43.41, 7.50 42.53, 6.43 41.95 C 5.36 41.37, 3.51 40.98, 2.92 40.78";
+const P1="M2229.02 1152.58C2229.49 1152.58 2229.83 1153.01 2229.73 1153.47L2227.27 1164.69C2227.2 1165 2227.43 1165.29 2227.75 1165.29H2239.47C2240.02 1165.29 2240.37 1165.87 2240.12 1166.36L2229.36 1186.99C2229.11 1187.47 2228.61 1187.78 2228.06 1187.78H2224.98C2224.51 1187.78 2224.16 1187.34 2224.26 1186.89L2226.73 1175.66C2226.8 1175.35 2226.56 1175.07 2226.25 1175.07H2214.53C2213.98 1175.07 2213.63 1174.48 2213.88 1173.99L2224.63 1153.36C2224.89 1152.88 2225.39 1152.58 2225.93 1152.58H2229.02Z", P2="M2227 1141.2C2232.71 1141.2 2238.03 1142.86 2242.5 1145.72C2243.13 1146.12 2243.2 1147 2242.68 1147.52L2240.44 1149.76C2239.64 1150.56 2238.4 1150.68 2237.4 1150.16C2234.29 1148.52 2230.75 1147.6 2227 1147.6C2214.63 1147.6 2204.6 1157.63 2204.6 1170C2204.6 1182.37 2214.63 1192.4 2227 1192.4C2239.37 1192.4 2249.4 1182.37 2249.4 1170C2249.4 1166.24 2248.47 1162.69 2246.83 1159.58C2246.31 1158.58 2246.43 1157.34 2247.23 1156.55L2249.47 1154.31C2249.99 1153.78 2250.86 1153.85 2251.26 1154.48C2254.13 1158.96 2255.8 1164.28 2255.8 1170C2255.8 1185.91 2242.91 1198.8 2227 1198.8C2211.09 1198.8 2198.2 1185.91 2198.2 1170C2198.2 1154.09 2211.09 1141.2 2227 1141.2Z";
+const SW=500, SH=300, CROP={x:1950,y:1000};
+const IX=277, IY=167, IR=29;
+
+/* ── SVG 量尺：Path2D 不提供长度/取点，借离屏 SVG path 测量 ── */
+const measureSvg = document.createElementNS("http://www.w3.org/2000/svg","svg");
+measureSvg.setAttribute("width","0"); measureSvg.setAttribute("height","0");
+measureSvg.style.position="absolute"; measureSvg.style.left="-9999px";
+const wirePathEl = document.createElementNS("http://www.w3.org/2000/svg","path");
+wirePathEl.setAttribute("d", BUILTIN_PATH);
+measureSvg.appendChild(wirePathEl); document.body.appendChild(measureSvg);
+
+let WIRE_PATH = new Path2D(BUILTIN_PATH);
+let WIRE_TOTAL_LEN = wirePathEl.getTotalLength();
+
+const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
+const el=id=>document.getElementById(id);
+
+/* ── 高分屏适配 + 舞台等比映射（原稿逻辑坐标 500×300 不变） ── */
+let DPR=1, VW=0, VH=0, stageScale=1, stageX=0, stageY=0;
+function sizeCanvas(){
+  DPR=window.devicePixelRatio||1;
+  VW=window.innerWidth; VH=window.innerHeight;
+  cv.width=Math.round(VW*DPR); cv.height=Math.round(VH*DPR);
+  cv.style.width=VW+"px"; cv.style.height=VH+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  const pad=24, safeRight=VW>720?332:0;
+  const availW=Math.max(160,VW-safeRight-pad*2);
+  const availH=Math.max(120,(VW>720?VH:VH*0.44)-pad*2);
+  stageScale=Math.min(availW/SW, availH/SH);
+  stageX=pad+(availW-SW*stageScale)/2;
+  stageY=pad+(availH-SH*stageScale)/2;
+}
+window.addEventListener("resize", ()=>{ sizeCanvas(); requestRedraw(); });
+
+/* ── 图标离屏画布（2× 烘焙） ── */
+const iconClip=new Path2D(P1); iconClip.addPath(new Path2D(P2));
+const iconCv=document.createElement("canvas"); iconCv.width=SW*2; iconCv.height=SH*2;
+{ const c=iconCv.getContext("2d"); c.setTransform(2,0,0,2,0,0);
+  c.translate(-CROP.x,-CROP.y); c.fillStyle="#00A86B"; c.fill(iconClip); }
+
+const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const smoothstep=(e0,e1,x)=>{const t=clamp((x-e0)/(e1-e0));return t*t*(3-2*t);};
+
+/* ── 可复现随机种子 ── */
+let seed=42;
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; var t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+const rand=(rf,a,b)=>a+rf()*(b-a);
+
+/* ── 参数状态 ── */
+const S={
+  speed:1.35, count:110, amp:14, grad:0.43, rx:116, ry:116, running:true,
+  pulseOn:true,  pulseRate:1.35,  pulseAmp:8,   pulseStrength:0.30,
+  waveOn:true,   waveInterval:1.4, waveSpeed:95, waveWidth:2.6,
+  strokeOn:true, strokeSpeed:100, strokeAlpha:0.90, strokeWidth:1.3,
+  floatOn:true,  floatAmp:2.5,   floatRate:0.55, tiltAmp:1.2,
+  lineOn:true,   lineW:6.0,      lineA:0.85,
+  wireOn:true,   wireLineOn:true, wireWidth:5.0, wirePathAlpha:0.20,
+  wireSpeed:0.8, wireAlpha:0.29, wireDashLen:40, wireGapLen:49,
+  wirePartOn:true, wirePartCount:32, wirePartSpeed:1.9, wirePartSize:0.4, wirePartTrail:3
+};
+
+/* ── 电线粒子（沿 SVG 路径游动，带辉光与拖尾） ── */
+class WireParticle {
+  constructor(id) { this.id=id; this.gen=0; this.reset(true); }
+  rf(){ return mulberry32(seed+90000+this.id*7919+this.gen*104729); }
+  reset(randomizeDist=false){
+    const rf=this.rf();
+    this.dist = randomizeDist ? rf()*WIRE_TOTAL_LEN : 0;
+    this.baseSpeed = rand(rf,40,100);
+    this.offset = rand(rf,-2,2);
+    this.sizeBase = rand(rf,0.5,1.2);
+  }
+  update(rawDt){
+    this.dist += this.baseSpeed*rawDt*S.wirePartSpeed;
+    if(this.dist>WIRE_TOTAL_LEN){ this.gen++; this.reset(); }
+  }
+  draw(){
+    const pt=wirePathEl.getPointAtLength(this.dist);
+    const trailLen=Math.max(1,S.wirePartTrail);
+    const ptPrev=wirePathEl.getPointAtLength(Math.max(0,this.dist-trailLen));
+    const dx=pt.x-ptPrev.x, dy=pt.y-ptPrev.y, len=Math.hypot(dx,dy)||1;
+    const nx=-dy/len, ny=dx/len;
+    const x=pt.x+nx*this.offset, y=pt.y+ny*this.offset;
+    const progress=this.dist/WIRE_TOTAL_LEN;
+    const alpha=Math.sin(progress*Math.PI)*0.9;
+    const size=this.sizeBase*S.wirePartSize;
+    const glowR=size*4;
+    const g=ctx.createRadialGradient(x,y,0,x,y,glowR);
+    g.addColorStop(0,`rgba(180,255,220,${alpha*0.9})`);
+    g.addColorStop(0.4,`rgba(0,225,110,${alpha*0.25})`);
+    g.addColorStop(1,"rgba(0,200,120,0)");
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,glowR,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=`rgba(230,255,240,${alpha})`;
+    ctx.beginPath(); ctx.arc(x,y,size,0,Math.PI*2); ctx.fill();
+    if(trailLen>1){
+      ctx.strokeStyle=`rgba(0,225,110,${alpha*0.45})`; ctx.lineWidth=size*0.7;
+      ctx.beginPath(); ctx.moveTo(x,y);
+      ctx.lineTo(ptPrev.x+nx*this.offset, ptPrev.y+ny*this.offset); ctx.stroke();
+    }
+  }
+}
+let wireParts=[];
+function seedWireParts(){
+  wireParts=[];
+  for(let i=0;i<S.wirePartCount;i++) wireParts.push(new WireParticle(i));
+}
+
+/* ── 背景汇聚粒子（右下椭圆场 → 图标） ── */
+const TH0=-0.50, TH1=1.62;
+function spawnPoint(rf){
+  if(S.count===0) return {x:IX,y:IY,th:0};
+  const th=TH0+(TH1-TH0)*Math.pow(rf(),0.82);
+  const c=Math.cos(th), s=Math.sin(th);
+  const R=1/Math.sqrt((c/S.rx)*(c/S.rx)+(s/S.ry)*(s/S.ry));
+  const rInner=IR+16;
+  const r=rInner+(R-rInner)*Math.pow(rf(),0.78);
+  return {x:IX+c*r, y:IY+s*r, th};
+}
+function makeP(rf){
+  if(S.count===0) return null;
+  const s=spawnPoint(rf);
+  const dx=s.x-IX, dy=s.y-IY, d=Math.hypot(dx,dy)||1;
+  const T={x:IX+dx/d*IR*0.92, y:IY+dy/d*IR*0.92};
+  const len=Math.hypot(T.x-s.x,T.y-s.y)||1;
+  const nx=-dy/d, ny=dx/d, bow=rand(rf,-6,6);
+  return {S:s,T,len,bow,nx,ny,q:0,th:Math.atan2(dy,dx),
+    pace:rand(rf,0.55,1.0)*(0.55+0.45*clamp(0.4+dy/240)),
+    r:rand(rf,0.55,1.4),px:s.x,py:s.y};
+}
+function posAt(p){
+  const t=p.q;
+  return { x:lerp(p.S.x,p.T.x,t)+p.nx*Math.sin(Math.PI*t)*p.bow,
+           y:lerp(p.S.y,p.T.y,t)+p.ny*Math.sin(Math.PI*t)*p.bow };
+}
+let parts=[];
+function seedParts(){
+  const rf=mulberry32(seed);
+  parts=[];
+  if(S.count===0) return;
+  for(let i=0;i<S.count;i++){
+    const p=makeP(rf); if(!p) continue;
+    p.id=i; p.gen=0; p.q=Math.pow(rf(),0.7);
+    const pos=posAt(p); p.px=pos.x; p.py=pos.y; parts.push(p);
+  }
+}
+
+/* ── 图标动态状态 ── */
+let breathT=0, pulseT=0, floatT=0, strokeOff=0, waveTimer=0, wireOffset=0;
+const waves=[];
+const WAVE_R0=IR*0.95, WAVE_R1=IR*3.1, WAVE_SPAN=WAVE_R1-WAVE_R0;
+const STROKE_LEN=240, STROKE_DASH=52;
+
+/* ── 统一重绘入口：暂停态拖滑杆也能立即重绘 ── */
+let needRedraw=true;
+function requestRedraw(){ needRedraw=true; }
+
+/* ── 描摹状态 ── */
+let tracing=false, traceDrag=false, lineData=[];
+
+/* ── 单帧渲染 ── */
+function render(){
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.fillStyle="#000"; ctx.fillRect(0,0,VW,VH);
+  ctx.save();
+  ctx.translate(stageX,stageY); ctx.scale(stageScale,stageScale);
+  ctx.beginPath(); ctx.rect(0,0,SW,SH); ctx.clip();
+  ctx.clearRect(0,0,SW,SH); ctx.fillStyle="#000"; ctx.fillRect(0,0,SW,SH);
+
+  const bs=0.5-0.5*Math.cos(breathT*Math.PI*2);
+
+  if(S.wireOn) drawWire();
+
+  if(parts.length>0){
+    ctx.save(); ctx.globalCompositeOperation="lighter";
+    for(const p of parts){
+      const pos=posAt(p);
+      const a=0.88*Math.min(smoothstep(0,0.12,p.q), 1-smoothstep(0.66,1,p.q));
+      if(a>0.01){
+        const sp=Math.hypot(pos.x-p.px,pos.y-p.py), tlen=clamp(sp*9,1.5,40);
+        if(tlen>1.2&&sp>0.01){
+          const ux=(pos.x-p.px)/sp, uy=(pos.y-p.py)/sp;
+          const g=ctx.createLinearGradient(pos.x,pos.y,pos.x-ux*tlen,pos.y-uy*tlen);
+          g.addColorStop(0,`rgba(175,255,210,${0.60*a})`);
+          g.addColorStop(0.45,`rgba(0,225,110,${0.26*a})`);
+          g.addColorStop(1,"rgba(0,200,90,0)");
+          ctx.strokeStyle=g; ctx.lineWidth=p.r*0.72; ctx.lineCap="round";
+          ctx.beginPath(); ctx.moveTo(pos.x,pos.y); ctx.lineTo(pos.x-ux*tlen,pos.y-uy*tlen); ctx.stroke();
+        }
+        const near=clamp(p.q*1.4);
+        ctx.fillStyle=`rgba(${Math.round(60+165*near)},255,${Math.round(120+90*near)},${0.78*a})`;
+        ctx.beginPath(); ctx.arc(pos.x,pos.y,p.r*(0.7+0.55*near),0,Math.PI*2); ctx.fill();
+      }
+      p.px=pos.x; p.py=pos.y;
+    }
+    ctx.restore();
+  }
+
+  if(waves.length) drawWaves();
+
+  const sc=1+S.amp/100*bs;
+  const fy=S.floatOn?Math.sin(floatT*Math.PI*2)*S.floatAmp:0;
+  const tl=S.floatOn?Math.sin(floatT*Math.PI*2+Math.PI/2)*S.tiltAmp*Math.PI/180:0;
+  ctx.save();
+  ctx.translate(IX, IY+fy); ctx.rotate(tl); ctx.scale(sc,sc); ctx.translate(-IX,-IY);
+  radialGlow(IX, IY, IR*1.35+7*bs, 0.10+0.14*bs);
+  if(S.pulseOn){
+    const sv=Math.sin(pulseT*Math.PI*2), pulse=sv>0?Math.pow(sv,3):0;
+    if(pulse>0.02) radialGlow(IX, IY, IR*1.15+S.pulseAmp*pulse, S.pulseStrength*pulse);
+  }
+  ctx.drawImage(iconCv, 0, 0, SW, SH);
+  if(S.strokeOn){
+    ctx.save(); ctx.translate(-CROP.x,-CROP.y); ctx.globalCompositeOperation="lighter";
+    ctx.strokeStyle=`rgba(190,255,220,${S.strokeAlpha})`; ctx.lineWidth=S.strokeWidth;
+    ctx.lineCap="round"; ctx.lineJoin="round";
+    ctx.setLineDash([STROKE_DASH, STROKE_LEN-STROKE_DASH]); ctx.lineDashOffset=-strokeOff;
+    ctx.stroke(iconClip); ctx.restore();
+  }
+  ctx.restore();
+
+  if(tracing || (S.lineOn && lineData.length)) drawTraceHelper();
+  ctx.restore();
+}
+
+/* ── 电线绘制：单层白线 + 两层虚线流光 + 沿路径游动粒子 ── */
+function drawWire(){
+  if(S.wireLineOn){
+    ctx.save();
+    ctx.globalCompositeOperation="lighter"; ctx.lineCap="round"; ctx.lineJoin="round";
+    ctx.strokeStyle=`rgba(255,255,255,${S.wirePathAlpha})`; ctx.lineWidth=S.wireWidth;
+    ctx.stroke(WIRE_PATH);
+    ctx.strokeStyle=`rgba(0,255,120,${S.wireAlpha*0.6})`;
+    ctx.lineWidth=Math.max(1,S.wireWidth*0.7);
+    ctx.setLineDash([S.wireDashLen,S.wireGapLen]); ctx.lineDashOffset=-wireOffset;
+    ctx.stroke(WIRE_PATH);
+    ctx.strokeStyle=`rgba(220,255,240,${S.wireAlpha})`;
+    ctx.lineWidth=Math.max(1,S.wireWidth*0.3);
+    ctx.setLineDash([S.wireDashLen*0.6,S.wireGapLen*1.1]); ctx.lineDashOffset=-wireOffset;
+    ctx.stroke(WIRE_PATH);
+    ctx.setLineDash([]); ctx.restore();
+  }
+  if(S.wirePartOn){
+    ctx.save(); ctx.globalCompositeOperation="lighter";
+    for(const wp of wireParts) wp.draw();
+    ctx.restore();
+  }
+}
+
+/* ── 描摹矢量线（粗细/亮度/开关由「绘制」页参数控制） ── */
+function drawTraceHelper(){
+  if(!lineData.length) return;
+  ctx.save(); ctx.globalCompositeOperation="source-over";
+  ctx.strokeStyle=`rgba(255,90,90,${clamp(S.lineA*0.65,0,1)})`;
+  ctx.lineWidth=S.lineW; ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(lineData[0].x,lineData[0].y);
+  for(let i=1;i<lineData.length;i++) ctx.lineTo(lineData[i].x,lineData[i].y);
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=`rgba(255,90,90,${clamp(S.lineA,0,1)})`;
+  for(const p of lineData){ ctx.beginPath(); ctx.arc(p.x,p.y,2.2,0,Math.PI*2); ctx.fill(); }
+  ctx.restore();
+}
+
+function drawWaves(){
+  ctx.save(); ctx.globalCompositeOperation="lighter";
+  for(const w of waves){
+    const r=lerp(WAVE_R0,WAVE_R1,w.t), a=0.34*(1-w.t);
+    if(a<=0.004) continue;
+    ctx.strokeStyle=`rgba(0,225,110,${a})`;
+    ctx.lineWidth=Math.max(0.3,S.waveWidth*(1-w.t*0.75));
+    ctx.beginPath(); ctx.arc(IX,IY,r,0,Math.PI*2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function step(p,dt){
+  const v=p.pace*(26+(120+280*S.grad)*Math.pow(p.q,1.7));
+  p.q+=v*dt/p.len;
+  if(p.q>=1){
+    p.gen++;
+    const rf=mulberry32(seed+p.id*7919+p.gen*104729);
+    const n=makeP(rf); if(!n) return;
+    Object.assign(p,{S:n.S,T:n.T,len:n.len,bow:n.bow,nx:n.nx,ny:n.ny,th:n.th,pace:n.pace,r:n.r,q:0});
+    const pos=posAt(p); p.px=pos.x; p.py=pos.y;
+  }
+}
+
+function radialGlow(cx,cy,r,a){
+  if(a<=0.002||r<=0) return;
+  const g=ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+  g.addColorStop(0,`rgba(0,214,88,${a})`);
+  g.addColorStop(0.45,`rgba(0,200,90,${a*0.4})`);
+  g.addColorStop(1,"rgba(0,180,90,0)");
+  ctx.fillStyle=g; ctx.fillRect(cx-r,cy-r,r*2,r*2);
+}
+
+/* ── 主循环 ── */
+let last=performance.now();
+const PERIOD=2.4;
+function frame(now){
+  const raw=Math.min(0.05,(now-last)/1000); last=now;
+  const dt=S.running?raw*S.speed:0;
+  if(S.running){
+    breathT=(breathT+dt/PERIOD)%1;
+    pulseT=(pulseT+dt*S.pulseRate)%1;
+    floatT=(floatT+dt*S.floatRate)%1;
+    strokeOff=(strokeOff+dt*S.strokeSpeed)%STROKE_LEN;
+    wireOffset=(wireOffset+dt*S.wireSpeed*200)%1000;
+    if(S.waveOn){
+      waveTimer+=dt; let g=0;
+      while(waveTimer>=S.waveInterval && g++<4){ waveTimer-=S.waveInterval; waves.push({t:0}); }
+    }
+    for(let i=waves.length-1;i>=0;i--){
+      const w=waves[i]; w.t+=dt*S.waveSpeed/WAVE_SPAN;
+      if(w.t>=1) waves.splice(i,1);
+    }
+    for(const wp of wireParts) wp.update(raw);
+    if(parts.length!==S.count) seedParts();
+    for(const p of parts) step(p,dt);
+    needRedraw=true;
+  }
+  if(needRedraw){ render(); needRedraw=false; }
+  requestAnimationFrame(frame);
+}
+
+/* ── 页签与折叠分组 ── */
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active'); el('pane-'+t.dataset.tab).classList.add('active');
+    requestRedraw();
+  });
+});
+document.querySelectorAll('.fx-head').forEach(h=>{
+  h.addEventListener('click',e=>{
+    if(e.target.closest('input[type=checkbox]')) return;
+    const fx=h.parentElement, body=fx.querySelector('.fx-body');
+    fx.classList.toggle('collapsed'); body.classList.toggle('hidden');
+    requestRedraw();
+  });
+});
+
+/* ── 控件（统一走 requestRedraw） ── */
+const bind=(id,fmt,fn)=>{
+  const input=el(id), out=el('v'+id.charAt(0).toUpperCase()+id.slice(1));
+  input.oninput=e=>{ fn(+e.target.value); if(out) out.textContent=fmt(+e.target.value); requestRedraw(); };
+};
+bind("speed",v=>(v/100).toFixed(2)+"×",v=>S.speed=v/100);
+bind("amp",v=>v+"%",v=>S.amp=v);
+bind("grad",v=>(v/100).toFixed(2),v=>S.grad=v/100);
+bind("count",v=>""+v,v=>{S.count=v; seedParts();});
+bind("rx",v=>""+v,v=>{S.rx=v; seedParts();});
+bind("ry",v=>""+v,v=>{S.ry=v; seedParts();});
+
+bind("wireWidth",v=>v.toFixed(1),v=>S.wireWidth=v);
+bind("wirePathAlpha",v=>(v/100).toFixed(2),v=>S.wirePathAlpha=v/100);
+bind("wireSpeed",v=>(v/100).toFixed(1),v=>S.wireSpeed=v/100);
+bind("wireAlpha",v=>(v/100).toFixed(2),v=>S.wireAlpha=v/100);
+bind("wireDashLen",v=>""+v,v=>S.wireDashLen=v);
+bind("wireGapLen",v=>""+v,v=>S.wireGapLen=v);
+bind("wirePartCount",v=>""+v,v=>{S.wirePartCount=v; seedWireParts();});
+bind("wirePartSpeed",v=>(v/100).toFixed(1),v=>S.wirePartSpeed=v/100);
+bind("wirePartSize",v=>(v/100).toFixed(1),v=>S.wirePartSize=v/100);
+bind("wirePartTrail",v=>""+v,v=>S.wirePartTrail=v);
+
+bind("pulseRate",v=>(v/100).toFixed(2),v=>S.pulseRate=v/100);
+bind("pulseAmp",v=>""+v,v=>S.pulseAmp=v);
+bind("waveInterval",v=>(v/100).toFixed(2)+"s",v=>S.waveInterval=v/100);
+bind("waveSpeed",v=>""+v,v=>S.waveSpeed=v);
+bind("waveWidth",v=>v.toFixed(1),v=>S.waveWidth=v);
+bind("strokeSpeed",v=>""+v,v=>S.strokeSpeed=v);
+bind("strokeAlpha",v=>(v/100).toFixed(2),v=>S.strokeAlpha=v/100);
+bind("strokeWidth",v=>v.toFixed(1),v=>S.strokeWidth=v);
+bind("floatAmp",v=>v.toFixed(1),v=>S.floatAmp=v);
+bind("tiltAmp",v=>v.toFixed(1)+"°",v=>S.tiltAmp=v);
+bind("floatRate",v=>(v/100).toFixed(2),v=>S.floatRate=v/100);
+bind("lineW",v=>v.toFixed(1),v=>S.lineW=v);
+bind("lineA",v=>(v/100).toFixed(2),v=>S.lineA=v/100);
+
+/* 开关 → 子控件联动 */
+function ctlOf(key){ return el(key.replace(/On$/,'Ctl')); }
+function syncCtl(key){ const c=ctlOf(key); if(c) c.classList.toggle("off", !S[key]); }
+document.querySelectorAll('.chk input[type=checkbox]').forEach(cb=>{
+  const k=cb.dataset.key; S[k]=cb.checked; syncCtl(k);
+  cb.addEventListener('change',()=>{ S[k]=cb.checked; syncCtl(k); requestRedraw(); });
+});
+
+/* ── 绘制页：描摹 / 撤销 / 清空 / 应用文本 / 复制 ── */
+function setHint(t){ const out=el("out"); out.value=t; }
+el("undoPt").onclick=()=>{ if(lineData.length){ lineData.pop(); rebuildLine(); writeOut(); requestRedraw(); } };
+el("clearPt").onclick=()=>{ setLineData([]); };
+el("traceBtn").onclick=e=>{
+  tracing=!tracing; traceDrag=false;
+  e.target.textContent="手动描摹："+(tracing?"开":"关");
+  e.target.classList.toggle("on",tracing);
+  cv.style.cursor=tracing?"crosshair":"default";
+  requestRedraw();
+};
+el("applyOut").onclick=()=>{
+  const txt=el("out").value.trim();
+  if(!txt){ setHint("// 文本框为空"); return; }
+  const pts=[]; let m;
+  const re=/\{\s*x\s*:\s*(-?[\d.]+)\s*,\s*y\s*:\s*(-?[\d.]+)\s*\}/g;
+  while((m=re.exec(txt))) pts.push({x:+m[1],y:+m[2]});
+  if(!pts.length){
+    const re2=/(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)/g;
+    while((m=re2.exec(txt))) pts.push({x:+m[1],y:+m[2]});
+  }
+  if(pts.length<2){ setHint("// 没有解析出有效点集"); return; }
+  setLineData(pts);
+};
+el("copyOut").onclick=async e=>{
+  const v=el("out").value;
+  if(!v){ setHint("// 还没有数据，先描摹或粘贴点集"); return; }
+  let ok=false;
+  try{ await navigator.clipboard.writeText(v); ok=true; }catch(err){}
+  if(!ok){ el("out").select(); try{ ok=document.execCommand("copy"); }catch(err){} }
+  e.target.textContent=ok?"已复制 ✓":"复制失败";
+  setTimeout(()=>e.target.textContent="复制数据",1200);
+};
+function rebuildLine(){
+  let d=BUILTIN_PATH;
+  if(lineData.length){
+    const f=n=>n.toFixed(2);
+    d=`M ${f(lineData[0].x)} ${f(lineData[0].y)}`;
+    for(let i=1;i<lineData.length;i++) d+=` L ${f(lineData[i].x)} ${f(lineData[i].y)}`;
+  }
+  wirePathEl.setAttribute("d",d);
+  WIRE_PATH=new Path2D(d);
+  WIRE_TOTAL_LEN=wirePathEl.getTotalLength();
+  for(const wp of wireParts) wp.dist=Math.min(wp.dist,WIRE_TOTAL_LEN);
+  requestRedraw();
+}
+function setLineData(pts){ lineData=pts.slice(); rebuildLine(); writeOut(); }
+function writeOut(){
+  if(!lineData.length){ el("out").value=""; return; }
+  el("out").value=`const LINE_PTS=[${lineData.map(p=>`{x:${p.x.toFixed(1)},y:${p.y.toFixed(1)}}`).join(",")}];`;
+}
+function evtToLogical(e){
+  const r=cv.getBoundingClientRect();
+  return { x:((e.clientX-r.left)-stageX)/stageScale,
+           y:((e.clientY-r.top)-stageY)/stageScale };
+}
+function addTracePoint(e){
+  const p=evtToLogical(e), lastP=lineData[lineData.length-1];
+  if(lastP && Math.hypot(lastP.x-p.x,lastP.y-p.y)<3.5) return;
+  lineData.push({x:p.x,y:p.y}); rebuildLine(); writeOut();
+}
+cv.addEventListener("pointerdown",e=>{
+  if(!tracing) return; e.preventDefault();
+  if(cv.setPointerCapture) cv.setPointerCapture(e.pointerId);
+  traceDrag=true; addTracePoint(e);
+});
+cv.addEventListener("pointermove",e=>{ if(!tracing||!traceDrag) return; addTracePoint(e); });
+["pointerup","pointercancel","pointerleave"].forEach(t=>{ cv.addEventListener(t,()=>{ traceDrag=false; }); });
+
+/* ── 按钮 ── */
+el("toggle").onclick=e=>{ S.running=!S.running; e.target.textContent=S.running?"暂停":"继续"; requestRedraw(); };
+el("resetSeed").onclick=()=>{
+  seed=Math.floor(Math.random()*1e9);
+  seedParts(); seedWireParts();
+  el("seedInfo").textContent=`种子 #${seed} · 重置后分布可复现`;
+  requestRedraw();
+};
+
+/* 尊重系统「减少动态效果」：默认停在首帧，点继续才播放 */
+if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches){
+  S.running=false; el("toggle").textContent="继续";
+}
+
+/* 启动同步补画一帧，避免无人值守时闪现空画布 */
+sizeCanvas(); seedParts(); seedWireParts(); render(); needRedraw=false;
+last=performance.now();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
