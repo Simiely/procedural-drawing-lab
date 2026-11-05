@@ -34,6 +34,7 @@
 | ![雷达扫描](screenshots/radar-scan.png) | [雷达扫描 Radar Scan](experiments/径向扫描/radar-scan.html) | 径向扫描 | 多条光束自圆心同时旋转扫过圆形区域，拖尾呈扇形渐隐 | 扫描速度 / 扫描数量 / 拖尾长度 / 顺·逆时针 / 网格 / 扫描颜色 |
 | ![启动动画](screenshots/launch-splash.png) | [启动动画 Launch Splash](experiments/品牌动效/launch-splash.html) | 品牌动效 | 启动动画参数调试台：16:9 预览画布 + 毫秒级滑杆 + 缓动曲线下拉，3 套入场方案，实时预估总时长 | 入场方案 / 图标·文字·副标题时长 / 延迟·逐字错位 / 缓动曲线（Quart 系·ease）/ 整体 Logo 时长 |
 | ![充电图标](screenshots/charging-icon.png) | [充电图标 Charging Icon](experiments/粒子动势/charging-icon.html) | 粒子动势 | 粒子自右下椭圆场弯曲汇聚到充电图标；叠加电线流光（单层白线 + 虚线流光 + 沿路径游动粒子）与脉冲/光波/描边/浮动，并支持手动描摹路径 | 5 页签面板：节奏 / 粒子 / 流光（线条层·粒子层）/ 图标 / 绘制（描摹·点集·应用文本）+ 重置种子 |
+| ![沙漠行驶](screenshots/desert-sandstorm.png) | [沙漠行驶 · 湍流沙暴](experiments/粒子动势/desert-sandstorm.html) | 粒子动势 | fbm 噪声高度场生成沙丘，车辆尾部持续喷发沙粒与尘土，按寿命消散并受确定性噪声湍流扰动 | 车速 / 车身自转 / 喷射开角 / 湍流强度 / 沙粒生成量·寿命·大小·力度 / 尘土生成量·寿命 / 沙丘对比度 + 重置种子 |
 
 ## 目录规范（新增实验前必读）
 
