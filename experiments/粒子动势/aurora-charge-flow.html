@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>极光充电流 · Aurora Charge Flow</title>
+<style>
+  :root{ --bg:#000; --panel:#101010; --line:#222; --fg:#e6e6e6; --dim:#8a8a8a; --charge-color:#00ff88; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ width:100%; height:100%; overflow:hidden; background:#000; }
+  body{ color:var(--fg); font:12px/1.5 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; }
+  #canvas{ display:block; position:fixed; inset:0; width:100%; height:100%; }
+  .hidden-svg{ position:absolute; width:0; height:0; pointer-events:none; opacity:0; }
+
+  .panel{
+    position:fixed; top:16px; right:16px; width:310px; max-height:calc(100vh - 32px);
+    overflow-y:auto; z-index:10; user-select:none;
+    background:rgba(16,16,16,.92); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px);
+    border:1px solid var(--line); border-radius:14px; padding:12px 14px 14px;
+    box-shadow:0 18px 50px rgba(0,0,0,.7);
+  }
+  .panel::-webkit-scrollbar{ width:6px; }
+  .panel::-webkit-scrollbar-thumb{ background:#333; border-radius:3px; }
+  .head h1{ font-size:13px; font-weight:600; letter-spacing:.06em; color:#e9fff4; }
+  .head h1::before{ content:""; display:inline-block; width:6px; height:6px; border-radius:50%;
+        background:var(--charge-color); margin-right:8px; vertical-align:2px;
+        box-shadow:0 0 10px var(--charge-color); }
+  .head .sub{ margin-top:4px; font-size:10.5px; color:var(--dim); line-height:1.5; }
+
+  .sec{ margin:10px 0 4px; padding-bottom:4px; border-bottom:1px dashed #2a2a2a;
+        font-size:10.5px; font-weight:600; letter-spacing:1px; color:#8fd8b4; text-transform:uppercase; }
+  .ctl{ display:flex; align-items:center; gap:8px; margin-bottom:5px; font-size:11.5px; color:#aaa; }
+  .ctl label{ flex:1; min-width:88px; white-space:nowrap; }
+  .ctl input[type=range]{ -webkit-appearance:none; appearance:none; flex:0 0 118px; width:118px; height:3px;
+        border-radius:3px; background:#333; outline:none; cursor:pointer; display:block; }
+  .ctl input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:12px; height:12px; border-radius:50%;
+        background:var(--charge-color); cursor:pointer; box-shadow:0 0 0 3px rgba(0,255,136,.14); }
+  .ctl input[type=range]::-moz-range-thumb{ width:12px; height:12px; border:none; border-radius:50%;
+        background:var(--charge-color); cursor:pointer; box-shadow:0 0 0 3px rgba(0,255,136,.14); }
+  .ctl .val{ flex:0 0 52px; text-align:right; color:var(--fg); font:11px/1.4 ui-monospace,Menlo,monospace;
+        background:#000; border:1px solid #333; border-radius:4px; padding:2px 4px; }
+  .ctl input[type=color]{ flex:0 0 28px; width:28px; height:24px; border:1px solid #333; border-radius:4px;
+        padding:0; background:none; cursor:pointer; }
+  .ctl input[type=color]::-webkit-color-swatch-wrapper{ padding:0; }
+  .ctl input[type=color]::-webkit-color-swatch{ border:none; border-radius:3px; }
+
+  .btns{ display:flex; gap:6px; margin-top:10px; }
+  .btns button{ flex:1; padding:7px 0; border-radius:8px; border:1px solid #2c2c2c; background:#191919;
+        color:var(--fg); font-size:11.5px; cursor:pointer; font-family:inherit; transition:.15s; }
+  .btns button:hover{ border-color:#4a4a4a; color:#9effc8; }
+  .btns button.on{ border-color:rgba(0,255,136,.55); color:#9effc8; background:#132019; }
+  .phase{ margin-top:9px; font-size:10.5px; color:#9effc8; font-variant-numeric:tabular-nums; }
+  .note{ margin-top:9px; padding-top:9px; border-top:1px solid var(--line);
+         font-size:10.5px; color:#6e6e6e; line-height:1.6; }
+
+  @media (max-width:760px){
+    .panel{ width:auto; left:12px; right:12px; top:auto; bottom:12px; max-height:52vh; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+<svg class="hidden-svg" width="0" height="0" aria-hidden="true">
+  <path id="guide-path" d="
+                M 850 650 C 780 650, 740 660, 700 640 C 660 620, 620 580, 580 560 C 550 540, 530 540, 540 510
+                C 550 480, 570 480, 570 450 C 570 420, 530 400, 520 360 C 510 320, 490 280, 490 240
+                C 490 200, 520 160, 560 140 C 590 120, 620 110, 650 110
+            "/>
+</svg>
+
+<aside class="panel">
+  <div class="head">
+    <h1>极光充电流 · Aurora Charge Flow</h1>
+    <div class="sub">极简单层泛光版 · 沿内置 SVG 路径的渐变宽度脉冲，头部半圆收口，单次 shadowBlur 泛光 + 本体双层叠加</div>
+  </div>
+
+  <div class="sec">形状与长度</div>
+  <div class="ctl"><label>头部粗细</label><input type="range" id="head-width-slider" min="0" max="100" value="7" step="1"><span class="val" id="head-width-val">7</span></div>
+  <div class="ctl"><label>尾部粗细</label><input type="range" id="tail-width-slider" min="0" max="100" value="2" step="1"><span class="val" id="tail-width-val">2</span></div>
+  <div class="ctl"><label>脉冲长度</label><input type="range" id="pulse-len-slider" min="10" max="2500" value="270" step="10"><span class="val" id="pulse-len-val">270</span></div>
+  <div class="ctl"><label>脉冲间隔</label><input type="range" id="gap-len-slider" min="10" max="3000" value="300" step="10"><span class="val" id="gap-len-val">300</span></div>
+
+  <div class="sec">泛光控制</div>
+  <div class="ctl"><label>泛光范围</label><input type="range" id="glow-blur-slider" min="0" max="200" value="60" step="5"><span class="val" id="glow-blur-val">60</span></div>
+  <div class="ctl"><label>泛光亮度</label><input type="range" id="glow-intensity-slider" min="0" max="1" value="1" step="0.05"><span class="val" id="glow-intensity-val">1.00</span></div>
+
+  <div class="sec">底轨与透明度</div>
+  <div class="ctl"><label>底轨可见度</label><input type="range" id="base-opacity-slider" min="0" max="1" value="0.20" step="0.05"><span class="val" id="base-opacity-val">0.20</span></div>
+  <div class="ctl"><label>本体透明度</label><input type="range" id="opacity-slider" min="0" max="1" value="1" step="0.05"><span class="val" id="opacity-val">1.00</span></div>
+
+  <div class="sec">全局与系统</div>
+  <div class="ctl"><label>流速</label><input type="range" id="speed-slider" min="1" max="5000" value="200" step="10"><span class="val" id="speed-val">200</span></div>
+  <div class="ctl"><label>充电进度 (%)</label><input type="range" id="progress-slider" min="0" max="100" value="100"><span class="val" id="progress-val">100</span></div>
+  <div class="ctl"><label>流光颜色</label><input type="color" id="color-picker" value="#00ff88"><span class="val" id="color-val">#00ff88</span></div>
+
+  <div class="btns">
+    <button id="btn-pause">暂停</button>
+    <button id="btn-phase">重置相位</button>
+    <button id="btn-reset">重置参数</button>
+  </div>
+  <div class="phase" id="phaseInfo">相位 0 · 纯确定性动画，重置后首帧可复现</div>
+  <div class="note">路径由内嵌 SVG 曲线预采样（点 / 法线 / 切线角），无外部素材、无随机数；shadowBlur 按舞台缩放补偿以保持泛光比例。暂停态拖滑杆也会立即重绘。</div>
+</aside>
+
+<script>
+"use strict";
+(() => {
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const guidePath = document.getElementById('guide-path');
+        const pathLength = guidePath.getTotalLength();
+
+        const config = {
+            color: '#00ff88',
+            speed: 200,
+            headWidth: 7,
+            tailWidth: 2,
+            pulseLen: 270,
+            gapLen: 300,
+            glowBlur: 60,
+            glowIntensity: 1.0,
+            opacity: 1.0,
+            baseOpacity: 0.20,
+            progress: 100
+        };
+
+        /* ── 高分屏适配 + 舞台等比映射（原稿逻辑坐标 1024×768 不变） ── */
+        let DPR=1, VW=0, VH=0, stageScale=1, stageX=0, stageY=0;
+        let running=true, needRedraw=true;
+        function requestRedraw(){ needRedraw=true; }
+        function sizeCanvas(){
+          DPR = window.devicePixelRatio || 1;
+          VW = window.innerWidth; VH = window.innerHeight;
+          canvas.width  = Math.round(VW * DPR);   /* 取整避免亚像素 [MDN] */
+          canvas.height = Math.round(VH * DPR);
+          canvas.style.width  = VW + 'px';
+          canvas.style.height = VH + 'px';
+          ctx.setTransform(DPR, 0, 0, DPR, 0, 0);   /* 不叠加缩放 [MDN] */
+          const pad=24, safeRight = VW > 760 ? 332 : 0;
+          const availW = Math.max(160, VW - safeRight - pad*2);
+          const availH = Math.max(120, (VW > 760 ? VH : VH*0.44) - pad*2);
+          stageScale = Math.min(availW/1024, availH/768);
+          stageX = pad + (availW - 1024*stageScale)/2;
+          stageY = pad + (availH - 768*stageScale)/2;
+          requestRedraw();
+        }
+        window.addEventListener('resize', sizeCanvas);
+
+        // 预采样：点 + 法线 + 切线角
+        const points = [];
+        const step = 2;
+        for (let i = 0; i <= pathLength; i += step) {
+            const p = guidePath.getPointAtLength(i);
+            const pPrev = guidePath.getPointAtLength(Math.max(0, i - 1));
+            const pNext = guidePath.getPointAtLength(Math.min(pathLength, i + 1));
+
+            let dx = pNext.x - pPrev.x;
+            let dy = pNext.y - pPrev.y;
+            let len = Math.sqrt(dx*dx + dy*dy) || 1;
+
+            points.push({
+                x: p.x,
+                y: p.y,
+                nx: -dy / len,
+                ny: dx / len,
+                angle: Math.atan2(dy, dx)
+            });
+        }
+
+        let lastTime = performance.now();
+        let travelOffset = 0;
+        /* 原稿动画完全确定性（零随机数），相位可手动重置以复现首帧 */
+        function resetPhase(){ travelOffset = 0; requestRedraw(); }
+
+        /* ── 绘制：全屏黑底 → 舞台等比映射 → 原稿底轨/脉冲/泛光/本体算法 ── */
+        function draw(){
+          ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+          ctx.fillStyle = '#000'; ctx.fillRect(0, 0, VW, VH);
+          ctx.save();
+          ctx.translate(stageX, stageY);
+          ctx.scale(stageScale, stageScale);
+          ctx.fillStyle = '#050505'; ctx.fillRect(0, 0, 1024, 768);
+
+            // 1. 绘制底轨
+            if (config.baseOpacity > 0) {
+                ctx.beginPath();
+                ctx.moveTo(points[0].x, points[0].y);
+                for (let i = 1; i < points.length; i++) {
+                    ctx.lineTo(points[i].x, points[i].y);
+                }
+                ctx.strokeStyle = `rgba(255, 255, 255, ${config.baseOpacity * 0.3})`;
+                ctx.lineWidth = Math.max(config.headWidth, 6);
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.stroke();
+            }
+
+            // 2. 绘制脉冲
+            const maxDrawLen = pathLength * (config.progress / 100);
+            const cycleLen = config.pulseLen + config.gapLen;
+            const currentCycleOffset = travelOffset % cycleLen;
+
+            const r = parseInt(config.color.slice(1, 3), 16);
+            const g = parseInt(config.color.slice(3, 5), 16);
+            const b = parseInt(config.color.slice(5, 7), 16);
+
+            for (let i = -1; i <= Math.ceil(pathLength / cycleLen) + 1; i++) {
+                let headPos = currentCycleOffset + i * cycleLen;
+                let tailPos = headPos - config.pulseLen;
+
+                if (headPos < 0 || tailPos > maxDrawLen) continue;
+
+                let drawStart = Math.max(0, tailPos);
+                let drawEnd = Math.min(maxDrawLen, headPos);
+                if (drawStart >= drawEnd) continue;
+
+                let leftEdge = [];
+                let rightEdge = [];
+
+                for (let d = drawStart; d <= drawEnd; d += step) {
+                    let ratio = (d - tailPos) / config.pulseLen;
+                    ratio = Math.max(0, Math.min(1, ratio));
+
+                    let w = config.tailWidth + (config.headWidth - config.tailWidth) * ratio;
+                    let pt = points[Math.floor(d / step)];
+                    if (!pt) continue;
+
+                    leftEdge.push({ x: pt.x + pt.nx * w / 2, y: pt.y + pt.ny * w / 2 });
+                    rightEdge.push({ x: pt.x - pt.nx * w / 2, y: pt.y - pt.ny * w / 2 });
+                }
+
+                if (leftEdge.length < 2) continue;
+
+                ctx.beginPath();
+
+                // 左侧
+                ctx.moveTo(leftEdge[0].x, leftEdge[0].y);
+                for(let j=1; j<leftEdge.length; j++) ctx.lineTo(leftEdge[j].x, leftEdge[j].y);
+
+                // 头部平滑
+                const headCenter = points[Math.floor(drawEnd / step)];
+                if (headCenter) {
+                    const radius = config.headWidth / 2;
+                    const startAngle = headCenter.angle - Math.PI / 2;
+                    const endAngle = headCenter.angle + Math.PI / 2;
+                    for (let a = startAngle; a <= endAngle; a += 0.1) {
+                        ctx.lineTo(headCenter.x + Math.cos(a) * radius, headCenter.y + Math.sin(a) * radius);
+                    }
+                    ctx.lineTo(headCenter.x + Math.cos(endAngle) * radius, headCenter.y + Math.sin(endAngle) * radius);
+                }
+
+                // 右侧
+                for(let j=rightEdge.length-1; j>=0; j--) ctx.lineTo(rightEdge[j].x, rightEdge[j].y);
+                ctx.closePath();
+
+                // 渲染层 A: 泛光层 (单次渲染)
+                if (config.glowBlur > 0 && config.glowIntensity > 0) {
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'lighter';
+                    ctx.shadowBlur = config.glowBlur * stageScale;  /* shadowBlur 不受变换矩阵影响，按舞台缩放补偿 [MDN] */
+                    ctx.shadowColor = config.color;
+                    // 单次 fill，直接用辉光亮度控制透明度
+                    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${config.glowIntensity})`;
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                // 渲染层 B: 本体层
+                ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${config.opacity})`;
+                ctx.fill();
+            }
+
+          ctx.restore();
+        }
+
+        function frame(currentTime){
+          const deltaTime = Math.min(0.05, (currentTime - lastTime) / 1000);
+          lastTime = currentTime;
+          if(running){
+            /* 相位按周期取模，避免长时间运行无限累加导致浮点精度退化 */
+            const cycleLen = Math.max(1, config.pulseLen + config.gapLen);
+            travelOffset = (travelOffset + config.speed * deltaTime) % cycleLen;
+            needRedraw = true;
+          }
+          if(needRedraw){ draw(); needRedraw = false; }
+          requestAnimationFrame(frame);
+        }
+
+        /* ── UI 绑定（统一走 requestRedraw，暂停态调参也能立即重绘） ── */
+        function bindInput(id, valId, callback){
+          const el = document.getElementById(id), out = document.getElementById(valId);
+          el.addEventListener('input', (e) => {
+            const val = e.target.value;
+            if(out) out.textContent = (val % 1 !== 0) ? parseFloat(val).toFixed(2) : val;
+            callback(val);
+            requestRedraw();
+          });
+        }
+        bindInput('head-width-slider',     'head-width-val',     v => config.headWidth = parseInt(v));
+        bindInput('tail-width-slider',     'tail-width-val',     v => config.tailWidth = parseInt(v));
+        bindInput('pulse-len-slider',      'pulse-len-val',      v => config.pulseLen = parseInt(v));
+        bindInput('gap-len-slider',        'gap-len-val',        v => config.gapLen = parseInt(v));
+        bindInput('base-opacity-slider',   'base-opacity-val',   v => config.baseOpacity = parseFloat(v));
+        bindInput('speed-slider',          'speed-val',          v => config.speed = parseInt(v));
+        bindInput('glow-blur-slider',      'glow-blur-val',      v => config.glowBlur = parseInt(v));
+        bindInput('glow-intensity-slider', 'glow-intensity-val', v => config.glowIntensity = parseFloat(v));
+        bindInput('opacity-slider',        'opacity-val',        v => config.opacity = parseFloat(v));
+        bindInput('progress-slider',       'progress-val',       v => config.progress = parseInt(v));
+        bindInput('color-picker',          'color-val',          v => {
+          config.color = v;
+          document.documentElement.style.setProperty('--charge-color', v);
+          const out = document.getElementById('color-val'); if(out) out.textContent = v;
+        });
+
+        /* ── 按钮 ── */
+        const DEFAULTS = {
+          'head-width-slider':'7','tail-width-slider':'2','pulse-len-slider':'270','gap-len-slider':'300',
+          'glow-blur-slider':'60','glow-intensity-slider':'1','base-opacity-slider':'0.20',
+          'opacity-slider':'1','speed-slider':'200','progress-slider':'100','color-picker':'#00ff88'
+        };
+        const btnPause = document.getElementById('btn-pause');
+        btnPause.addEventListener('click', () => {
+          running = !running;
+          btnPause.textContent = running ? '暂停' : '继续';
+          btnPause.classList.toggle('on', !running);
+          requestRedraw();
+        });
+        document.getElementById('btn-phase').addEventListener('click', () => {
+          resetPhase();
+          document.getElementById('phaseInfo').textContent = '相位 0 · 纯确定性动画，重置后首帧可复现';
+        });
+        document.getElementById('btn-reset').addEventListener('click', () => {
+          Object.keys(DEFAULTS).forEach(id => {
+            const el = document.getElementById(id);
+            el.value = DEFAULTS[id];
+            el.dispatchEvent(new Event('input'));
+          });
+          resetPhase();
+          requestRedraw();
+        });
+
+        /* ── 启动：同步补画首帧，避免无人值守截图闪现空画布 ── */
+        sizeCanvas();
+        draw();
+        needRedraw = false;
+        if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches){
+          running = false;
+          btnPause.textContent = '继续';
+          btnPause.classList.add('on');
+        }
+        lastTime = performance.now();
+        requestAnimationFrame(frame);
+
+})();
+</script>
+</body>
+</html>
