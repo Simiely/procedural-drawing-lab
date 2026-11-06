@@ -36,6 +36,7 @@
 | ![充电图标](screenshots/charging-icon.png) | [充电图标 Charging Icon](experiments/粒子动势/charging-icon.html) | 粒子动势 | 粒子自右下椭圆场弯曲汇聚到充电图标；叠加电线流光（单层白线 + 虚线流光 + 沿路径游动粒子）与脉冲/光波/描边/浮动，并支持手动描摹路径 | 5 页签面板：节奏 / 粒子 / 流光（线条层·粒子层）/ 图标 / 绘制（描摹·点集·应用文本）+ 重置种子 |
 | ![沙漠行驶](screenshots/desert-sandstorm.png) | [沙漠行驶 · 湍流沙暴](experiments/粒子动势/desert-sandstorm.html) | 粒子动势 | fbm 噪声高度场生成沙丘，车辆尾部持续喷发沙粒与尘土，按寿命消散并受确定性噪声湍流扰动 | 车速 / 车身自转 / 喷射开角 / 湍流强度 / 沙粒生成量·寿命·大小·力度 / 尘土生成量·寿命 / 沙丘对比度 + 重置种子 |
 | ![极光充电流](screenshots/aurora-charge-flow.png) | [极光充电流 Aurora Charge Flow](experiments/粒子动势/aurora-charge-flow.html) | 粒子动势 | 沿内置 SVG 曲线流动的渐变宽度脉冲：头部半圆收口、尾部渐细，单次 shadowBlur 单层泛光 + 本体双层叠加，另有白色底轨 | 头部/尾部粗细 / 脉冲长度·间隔 / 泛光范围·亮度 / 底轨可见度 / 本体透明度 / 流速 / 流光颜色 / 充电进度 + 重置相位 |
+| ![能量坍塌](screenshots/energy-collapse.png) | [平滑圆形波纹 · 能量坍塌](experiments/粒子动势/energy-collapse.html) | 粒子动势 | 六边形剖分为 6 个等边三角形并按 1.5R / √3R 密铺全屏，按重心距离落入径向环带；扩张 / 收缩坍塌两段节奏，钟形曲线控制碎片缩放与淡出 | 三角形间隙 / 六边形大小 / 最大扩散半径 / 初始圆环厚度 / 扩散速度 / 循环停顿 / 碎片颜色 / 收缩额外缩小开关 + 暂停·重置相位·重置参数 |
 
 ## 目录规范（新增实验前必读）
 

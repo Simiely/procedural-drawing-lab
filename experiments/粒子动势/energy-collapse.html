@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>平滑圆形波纹 · 能量坍塌 Energy Collapse</title>
+<style>
+  :root{ --bg:#000; --panel:#111; --line:#222; --fg:#eee; --dim:#aaa; --accent:#ffd8cc; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ width:100%; height:100%; overflow:hidden; background:#000; }
+  body{ color:var(--fg); font:12px/1.5 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; }
+  #ringCanvas{ display:block; position:fixed; inset:0; width:100%; height:100%; }
+
+  .panel{
+    position:fixed; top:16px; right:16px; width:310px; max-height:calc(100vh - 32px);
+    overflow-y:auto; z-index:10; user-select:none;
+    background:rgba(17,17,17,.92); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px);
+    border:1px solid var(--line); border-radius:14px; padding:12px 14px 14px;
+    box-shadow:0 18px 50px rgba(0,0,0,.7);
+  }
+  .panel::-webkit-scrollbar{ width:6px; }
+  .panel::-webkit-scrollbar-thumb{ background:#333; border-radius:3px; }
+  .head h1{ font-size:13px; font-weight:600; letter-spacing:.06em; color:#fff2ec; }
+  .head h1::before{ content:""; display:inline-block; width:6px; height:6px; border-radius:50%;
+        background:var(--accent); margin-right:8px; vertical-align:2px;
+        box-shadow:0 0 10px var(--accent); }
+  .head .sub{ margin-top:4px; font-size:10.5px; color:#8a7f79; line-height:1.5; }
+
+  .sec{ margin:10px 0 5px; padding-bottom:4px; border-bottom:1px dashed #2a2a2a;
+        font-size:10.5px; font-weight:600; letter-spacing:1px; color:#e9b9a6; }
+  .ctl{ display:flex; align-items:center; justify-content:space-between; gap:8px;
+        margin-bottom:4px; font-size:11.5px; color:var(--dim); }
+  .ctl label{ flex:1; min-width:100px; cursor:pointer; }
+  .ctl .val{ flex:0 0 52px; text-align:right; color:#fff; font:11px/1.4 ui-monospace,Menlo,monospace; }
+  input[type=range]{ -webkit-appearance:none; appearance:none; width:100%; height:3px; border-radius:3px;
+        background:#333; outline:none; margin:3px 0 2px; cursor:pointer; display:block; }
+  input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:12px; height:12px; border-radius:50%;
+        background:var(--accent); cursor:pointer; box-shadow:0 0 0 3px rgba(255,216,204,.14); }
+  input[type=range]::-moz-range-thumb{ width:12px; height:12px; border:none; border-radius:50%;
+        background:var(--accent); cursor:pointer; box-shadow:0 0 0 3px rgba(255,216,204,.14); }
+  input[type=color]{ width:100%; height:26px; border:1px solid #333; border-radius:4px;
+        padding:0; background:none; cursor:pointer; }
+  input[type=color]::-webkit-color-swatch-wrapper{ padding:0; }
+  input[type=color]::-webkit-color-swatch{ border:none; border-radius:3px; }
+  .check{ display:flex; align-items:center; gap:8px; margin:6px 0 2px;
+          font-size:11.5px; color:var(--dim); cursor:pointer; }
+  .check input[type=checkbox]{ width:16px; height:16px; accent-color:var(--accent); cursor:pointer; }
+
+  .btns{ display:flex; gap:6px; margin-top:10px; }
+  .btns button{ flex:1; padding:7px 0; border-radius:8px; border:1px solid #333; background:#1d1d1d;
+        color:var(--fg); font-size:11.5px; cursor:pointer; font-family:inherit; transition:.15s; }
+  .btns button:hover{ border-color:#555; color:#ffe9df; }
+  .btns button.on{ border-color:rgba(255,216,204,.55); color:#ffe9df; background:#2a201c; }
+  .phase{ margin-top:9px; font-size:10.5px; color:#ffd8cc; font-variant-numeric:tabular-nums; }
+  .note{ margin-top:9px; padding-top:9px; border-top:1px solid var(--line);
+         font-size:10.5px; color:#6e6a67; line-height:1.6; }
+
+  @media (max-width:760px){
+    .panel{ width:auto; left:12px; right:12px; top:auto; bottom:12px; max-height:52vh; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="ringCanvas"></canvas>
+
+<aside class="panel">
+  <div class="head">
+    <h1>平滑圆形波纹 · 能量坍塌</h1>
+    <div class="sub">六边形三角剖分密铺 → 径向环带扩张 / 收缩坍塌；钟形曲线控制碎片缩放与淡出</div>
+  </div>
+
+  <div class="sec">几何与密铺</div>
+  <div class="ctl"><label for="gap">三角形间隙</label><span class="val" id="val-gap">0.64</span></div>
+  <input type="range" id="gap" min="0" max="0.8" value="0.64" step="0.01">
+  <div class="ctl"><label for="hexSize">六边形大小</label><span class="val" id="val-hexSize">20</span></div>
+  <input type="range" id="hexSize" min="10" max="60" value="20" step="1">
+
+  <div class="sec">波纹与节奏</div>
+  <div class="ctl"><label for="maxRadius">最大扩散半径</label><span class="val" id="val-maxRadius">290</span></div>
+  <input type="range" id="maxRadius" min="100" max="2000" value="290" step="10">
+  <div class="ctl"><label for="thickness">初始圆环厚度</label><span class="val" id="val-thickness">140</span></div>
+  <input type="range" id="thickness" min="50" max="600" value="140" step="10">
+  <div class="ctl"><label for="speed">扩散速度</label><span class="val" id="val-speed">250</span></div>
+  <input type="range" id="speed" min="50" max="1500" value="250" step="10">
+  <div class="ctl"><label for="pauseTime">循环停顿时间 (秒)</label><span class="val" id="val-pauseTime">0</span></div>
+  <input type="range" id="pauseTime" min="0" max="5" value="0" step="0.1">
+
+  <div class="sec">外观</div>
+  <div class="ctl"><label for="color">碎片颜色</label><span class="val" id="val-color">#ffd8cc</span></div>
+  <input type="color" id="color" value="#ffd8cc">
+  <label class="check"><input type="checkbox" id="enableExtraShrink" checked>收缩阶段整体额外缩小</label>
+
+  <div class="btns">
+    <button id="togglePlay">暂停</button>
+    <button id="btn-phase">重置相位</button>
+    <button id="btn-reset">重置参数</button>
+  </div>
+  <div class="phase" id="phaseInfo">相位 0 · 纯确定性动画，重置后首帧可复现</div>
+  <div class="note">碎片由六边形按 1.5R / √3R 间距剖分为 6 个等边三角形并密铺全屏，按重心到中心的距离落入径向环带；无外部素材、无随机数。暂停态拖滑杆也会立即重绘。</div>
+</aside>
+
+<script>
+"use strict";
+(() => {
+
+        const canvas = document.getElementById('ringCanvas');
+        const ctx = canvas.getContext('2d');
+
+        /* ── 高分屏适配 + 舞台中心（原稿逻辑坐标=CSS 像素，保持三角形网格覆盖全屏） ── */
+        let width=0, height=0, centerX=0, centerY=0, DPR=1;
+        let running=true, needRedraw=true, cycleTime=0;
+        function requestRedraw(){ needRedraw=true; }
+        function sizeCanvas(){
+          DPR = window.devicePixelRatio || 1;
+          width = window.innerWidth; height = window.innerHeight;
+          canvas.width  = Math.round(width * DPR);   /* 取整避免亚像素 [MDN] */
+          canvas.height = Math.round(height * DPR);
+          canvas.style.width  = width + 'px';
+          canvas.style.height = height + 'px';
+          ctx.setTransform(DPR, 0, 0, DPR, 0, 0);   /* 绝对变换，不叠加 [MDN] */
+          const safeRight = width > 760 ? 342 : 0;
+          centerX = (width - safeRight) / 2;
+          centerY = width > 760 ? height / 2 : height * 0.42;
+          buildScene();
+          requestRedraw();
+        }
+        window.addEventListener('resize', sizeCanvas);
+
+        // 按照截图更新默认参数
+        const params = {
+            gap: 0.64,
+            hexSize: 20,
+            maxRadius: 290,
+            thickness: 140,
+            speed: 250,
+            pauseTime: 0,
+            color: '#ffd8cc',
+            enableExtraShrink: true // 新增功能开关
+        };
+
+        let allTriangles = [];
+        /* 原稿动画完全确定性（零随机数），相位可手动重置以复现首帧 */
+        function resetPhase(){ cycleTime = 0; requestRedraw(); }
+
+        function buildScene() {
+            allTriangles = [];
+            const R = params.hexSize;
+            const dx = R * 1.5;
+            const dy = R * Math.sqrt(3);
+            const innerScale = 1 - params.gap;
+
+            let col = 0;
+            for (let x = -R * 2; x <= width + R * 2; x += dx) {
+                let startY = (col % 2 === 0) ? 0 : dy / 2;
+                for (let y = -R * 2 + startY; y <= height + R * 2; y += dy) {
+
+                    const cx = x;
+                    const cy = y;
+
+                    for (let i = 0; i < 6; i++) {
+                        const a1 = i * Math.PI / 3;
+                        const a2 = (i + 1) * Math.PI / 3;
+
+                        const v0x = 0, v0y = 0;
+                        const v1x = Math.cos(a1) * R, v1y = Math.sin(a1) * R;
+                        const v2x = Math.cos(a2) * R, v2y = Math.sin(a2) * R;
+
+                        const gx = (v0x + v1x + v2x) / 3;
+                        const gy = (v0y + v1y + v2y) / 3;
+
+                        const l0x = (v0x - gx) * innerScale;
+                        const l0y = (v0y - gy) * innerScale;
+                        const l1x = (v1x - gx) * innerScale;
+                        const l1y = (v1y - gy) * innerScale;
+                        const l2x = (v2x - gx) * innerScale;
+                        const l2y = (v2y - gy) * innerScale;
+
+                        const tx = cx + gx;
+                        const ty = cy + gy;
+
+                        const dist = Math.sqrt((tx - centerX) ** 2 + (ty - centerY) ** 2);
+
+                        allTriangles.push({
+                            tx, ty, dist,
+                            l0x, l0y, l1x, l1y, l2x, l2y
+                        });
+                    }
+                }
+                col++;
+            }
+        }
+
+
+        /* ── 周期长度（参数可变，取模相位避免长时间运行浮点精度退化） ── */
+        function totalCycle(){
+          const maxR = params.maxRadius;
+          const thick = Math.min(params.thickness, maxR);
+          return Math.max(0.001, (maxR - thick) / params.speed + thick / params.speed + params.pauseTime);
+        }
+
+        /* ── 绘制：全屏黑底 → 原稿径向环带 / 钟形缩放 / 坍塌算法 ── */
+        function draw(){
+            ctx.globalAlpha = 1;              /* 复位上一帧残留 alpha，保证黑底彻底清屏 [MDN] */
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.fillStyle = params.color;
+
+            const maxR = params.maxRadius;
+            const thick = Math.min(params.thickness, maxR);
+            const speed = params.speed;
+
+            const T_expand = (maxR - thick) / speed;
+            const T_contract = thick / speed;
+            const T_total = Math.max(0.001, T_expand + T_contract + params.pauseTime);
+
+            const t = cycleTime % T_total;
+
+            let r_outer = 0;
+            let r_inner = 0;
+            let extraShrink = 1.0; // 额外的整体缩小系数
+
+            if (t < T_expand) {
+                // 扩张阶段，不触发额外缩小
+                r_outer = speed * t + thick;
+                r_inner = speed * t;
+            }
+            else if (t < T_expand + T_contract) {
+                // 收缩阶段：外圈不动，内圈追赶
+                r_outer = maxR;
+                r_inner = (maxR - thick) + speed * (t - T_expand);
+
+                if (params.enableExtraShrink) {
+                    // 计算当前收缩进度 0 到 1
+                    const progress = (t - T_expand) / T_contract;
+                    // 使用 ease-in 曲线，让缩小的速度越来越快，有一种向内坍塌的压迫感
+                    extraShrink = 1.0 - (progress * progress);
+                }
+            }
+            else {
+                r_outer = maxR;
+                r_inner = maxR;
+                extraShrink = 0; // 彻底不可见
+            }
+
+            const currentThick = r_outer - r_inner;
+            if (currentThick <= 0.1) {
+                ctx.globalAlpha = 1;
+                return;
+            }
+
+            // 处理环带变薄时的透明度淡出，防止边缘锯齿突兀
+            const globalFade = Math.min(1, currentThick / (params.thickness * 0.2));
+
+            for (let i = 0; i < allTriangles.length; i++) {
+                const tri = allTriangles[i];
+
+                if (tri.dist >= r_inner && tri.dist <= r_outer) {
+
+                    const pos = (tri.dist - r_inner) / currentThick;
+
+                    // 钟形曲线：环带中间最大，两端平滑过渡到 0
+                    const x = (pos - 0.5) * 2;
+                    let localScale = Math.cos(x * Math.PI / 2);
+
+                    // 最终大小 = 当前位置大小 * 整体收缩缩小系数
+                    let finalScale = localScale * extraShrink;
+
+                    // 透明度也一并衰减
+                    let finalAlpha = finalScale * globalFade;
+
+                    if (finalScale > 0.01) {
+                        ctx.globalAlpha = finalAlpha;
+
+                        // 使用绝对坐标计算，避免大量 save/restore 造成的性能损耗
+                        ctx.beginPath();
+                        ctx.moveTo(tri.tx + tri.l0x * finalScale, tri.ty + tri.l0y * finalScale);
+                        ctx.lineTo(tri.tx + tri.l1x * finalScale, tri.ty + tri.l1y * finalScale);
+                        ctx.lineTo(tri.tx + tri.l2x * finalScale, tri.ty + tri.l2y * finalScale);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                }
+            }
+
+            ctx.globalAlpha = 1;
+        }
+
+
+        function frame(time){
+          const deltaTime = Math.min(0.05, (time - lastTime) / 1000);  /* 后台标签页回来钳制大跳 [MDN] */
+          lastTime = time;
+          if(running){
+            cycleTime = (cycleTime + deltaTime) % totalCycle();
+            needRedraw = true;
+          }
+          if(needRedraw){ draw(); needRedraw = false; }
+          requestAnimationFrame(frame);
+        }
+
+        /* ── UI 绑定（统一走 requestRedraw，暂停态调参也能立即重绘） ── */
+        function bindControl(id, paramName, displayId, callback){
+          const input = document.getElementById(id);
+          const display = document.getElementById(displayId);
+          input.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            params[paramName] = val;
+            if(display) display.textContent = val;
+            if(callback) callback();
+            requestRedraw();
+          });
+        }
+        bindControl('gap',        'gap',        'val-gap',        buildScene);
+        bindControl('hexSize',    'hexSize',    'val-hexSize',    buildScene);
+        bindControl('maxRadius',  'maxRadius',  'val-maxRadius');
+        bindControl('thickness',  'thickness',  'val-thickness');
+        bindControl('speed',      'speed',      'val-speed');
+        bindControl('pauseTime',  'pauseTime',  'val-pauseTime');
+
+        document.getElementById('color').addEventListener('input', (e) => {
+          params.color = e.target.value;
+          document.getElementById('val-color').textContent = params.color;
+          document.documentElement.style.setProperty('--accent', params.color);
+          requestRedraw();
+        });
+        document.getElementById('enableExtraShrink').addEventListener('change', (e) => {
+          params.enableExtraShrink = e.target.checked;
+          requestRedraw();
+        });
+
+        const DEFAULTS = {
+          'gap':'0.64','hexSize':'20','maxRadius':'290','thickness':'140',
+          'speed':'250','pauseTime':'0','color':'#ffd8cc'
+        };
+        const playBtn = document.getElementById('togglePlay');
+        playBtn.addEventListener('click', () => {
+          running = !running;
+          playBtn.textContent = running ? '暂停' : '继续';
+          playBtn.classList.toggle('on', !running);
+          requestRedraw();
+        });
+        document.getElementById('btn-phase').addEventListener('click', () => {
+          resetPhase();
+          document.getElementById('phaseInfo').textContent = '相位 0 · 纯确定性动画，重置后首帧可复现';
+        });
+        document.getElementById('btn-reset').addEventListener('click', () => {
+          Object.keys(DEFAULTS).forEach(id => {
+            const el = document.getElementById(id);
+            el.value = DEFAULTS[id];
+            el.dispatchEvent(new Event('input'));
+          });
+          const cb = document.getElementById('enableExtraShrink');
+          cb.checked = true; params.enableExtraShrink = true;
+          resetPhase();
+          requestRedraw();
+        });
+
+        /* ── 启动：同步补画首帧，避免无人值守截图闪现空画布 ── */
+        let lastTime = performance.now();
+        sizeCanvas();
+        draw();
+        needRedraw = false;
+        if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches){
+          running = false;
+          playBtn.textContent = '继续';
+          playBtn.classList.add('on');
+        }
+        lastTime = performance.now();
+        requestAnimationFrame(frame);
+
+})();
+</script>
+</body>
+</html>
