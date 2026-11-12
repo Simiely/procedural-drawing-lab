@@ -37,6 +37,7 @@
 | ![沙漠行驶](screenshots/desert-sandstorm.png) | [沙漠行驶 · 湍流沙暴](experiments/粒子动势/desert-sandstorm.html) | 粒子动势 | fbm 噪声高度场生成沙丘，车辆尾部持续喷发沙粒与尘土，按寿命消散并受确定性噪声湍流扰动 | 车速 / 车身自转 / 喷射开角 / 湍流强度 / 沙粒生成量·寿命·大小·力度 / 尘土生成量·寿命 / 沙丘对比度 + 重置种子 |
 | ![极光充电流](screenshots/aurora-charge-flow.png) | [极光充电流 Aurora Charge Flow](experiments/粒子动势/aurora-charge-flow.html) | 粒子动势 | 沿内置 SVG 曲线流动的渐变宽度脉冲：头部半圆收口、尾部渐细，单次 shadowBlur 单层泛光 + 本体双层叠加，另有白色底轨 | 头部/尾部粗细 / 脉冲长度·间隔 / 泛光范围·亮度 / 底轨可见度 / 本体透明度 / 流速 / 流光颜色 / 充电进度 + 重置相位 |
 | ![能量坍塌](screenshots/energy-collapse.png) | [平滑圆形波纹 · 能量坍塌](experiments/粒子动势/energy-collapse.html) | 粒子动势 | 六边形剖分为 6 个等边三角形并按 1.5R / √3R 密铺全屏，按重心距离落入径向环带；扩张 / 收缩坍塌两段节奏，钟形曲线控制碎片缩放与淡出 | 三角形间隙 / 六边形大小 / 最大扩散半径 / 初始圆环厚度 / 扩散速度 / 循环停顿 / 碎片颜色 / 收缩额外缩小开关 + 暂停·重置相位·重置参数 |
+| ![动态扩散圆环](screenshots/pulse-rings.png) | [动态扩散圆环 · 脉冲感循环](experiments/品牌动效/pulse-rings.html) | 品牌动效 | 按间隔生成径向渐变圆环，尺寸放大（scale 0→1.5）与透明度渐隐双轨并行，三色标径向渐变 + 9 条缓动曲线；纯 DOM + CSS + Web Animations，无 Canvas | 生成间隔 / 最大尺寸 / 产生时长 / 消失时长 / 尺寸曲线 / 渐隐曲线 / 0%·70%·100% 处透明度 + 暂停·重播·重置参数 |
 
 ## 目录规范（新增实验前必读）
 

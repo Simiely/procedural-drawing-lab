@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>动态扩散圆环 · 脉冲感循环 Pulse Rings</title>
+<style>
+  :root { --acc:#FF6C00; --bg:#121212; --panel:#1e1e1e; --line:#333; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html,body { height:100%; }
+  body {
+    display:flex; height:100vh; overflow:hidden; background:var(--bg); color:#fff;
+    font:12px/1.5 -apple-system,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+  }
+
+  /* ====== 左侧 16:9 预览画布（DEVELOPMENT.md 品牌动效类版式） ====== */
+  .canvas-area {
+    flex:1; display:flex; align-items:center; justify-content:center;
+    padding:40px; background:#1a1a1a; overflow:hidden;
+  }
+  .screen {
+    width:100%; max-width:1024px; aspect-ratio:16/9; background:#000;
+    position:relative; border:1px solid var(--line); border-radius:4px;
+    box-shadow:0 20px 50px rgba(0,0,0,.5); overflow:hidden;
+    container-type:size;
+  }
+  #stage { position:absolute; inset:0; overflow:hidden; }
+  .circle {
+    position:absolute; top:50%; left:50%; border-radius:50%;
+    transform:translate(-50%,-50%); pointer-events:none;
+    will-change:transform,opacity; opacity:0;
+  }
+
+  /* ====== 右侧参数面板 ====== */
+  .control-panel {
+    width:340px; flex:0 0 340px; background:var(--panel);
+    border-left:1px solid var(--line); display:flex; flex-direction:column;
+    padding:16px 18px 18px; overflow-y:auto; box-shadow:-5px 0 20px rgba(0,0,0,.3); z-index:100;
+  }
+  .control-panel::-webkit-scrollbar { width:6px; }
+  .control-panel::-webkit-scrollbar-thumb { background:#3a3a3a; border-radius:3px; }
+  .panel-title { font-size:15px; font-weight:600; color:#fff; }
+  .panel-desc { margin:4px 0 10px; font-size:10.5px; color:#888; line-height:1.55; }
+
+  .sec {
+    margin:9px 0 6px; padding-bottom:3px; border-bottom:1px dashed #3a3a3a;
+    font-size:10px; font-weight:600; letter-spacing:1px; color:var(--acc);
+  }
+  .ctl { display:flex; align-items:center; justify-content:space-between; gap:8px;
+         margin-bottom:2px; font-size:11.5px; color:#ccc; }
+  .ctl label { flex:1; min-width:0; cursor:pointer; }
+  .val-tag {
+    flex:0 0 auto; background:rgba(255,108,0,.15); color:var(--acc); padding:1px 6px;
+    border-radius:4px; font:11px/1.4 ui-monospace,Menlo,monospace; font-variant-numeric:tabular-nums;
+  }
+  input[type=range] {
+    -webkit-appearance:none; appearance:none; display:block; width:100%; height:3px;
+    border-radius:3px; background:#3a3a3a; outline:none; margin:3px 0 7px; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:12px; height:12px; border-radius:50%;
+    background:var(--acc); cursor:pointer; box-shadow:0 0 0 3px rgba(255,108,0,.16);
+  }
+  input[type=range]::-moz-range-thumb {
+    width:12px; height:12px; border:none; border-radius:50%;
+    background:var(--acc); cursor:pointer; box-shadow:0 0 0 3px rgba(255,108,0,.16);
+  }
+  select {
+    width:100%; padding:5px 6px; background:#2a2a2a; color:#ddd;
+    border:1px solid #444; border-radius:6px; font:11px/1.3 inherit;
+    outline:none; cursor:pointer; margin-bottom:6px;
+  }
+  select:hover { border-color:#555; }
+  select:focus { border-color:var(--acc); }
+
+  .btns { display:flex; gap:6px; margin-top:10px; }
+  .btns button {
+    flex:1; padding:7px 0; border:1px solid #444; border-radius:8px; background:#2a2a2a;
+    color:#eee; font-size:11.5px; cursor:pointer; font-family:inherit; transition:.15s;
+  }
+  .btns button:hover { border-color:#666; color:#ffd9bd; }
+  .btns button.on { border-color:rgba(255,108,0,.6); color:#ffd9bd; background:#3a2417; }
+
+  .status {
+    margin-top:9px; padding:7px 9px; border-radius:7px; background:#262626;
+    color:#ffb375; font:10.5px/1.5 ui-monospace,Menlo,monospace;
+    font-variant-numeric:tabular-nums;
+  }
+  .note {
+    margin-top:9px; padding-top:9px; border-top:1px solid var(--line);
+    font-size:10px; color:#7a7a7a; line-height:1.6;
+  }
+
+  /* 减弱动效：不生成循环动画，只留一个静态终态圆环（MDN + DEVELOPMENT 取图办法②） */
+  @media (prefers-reduced-motion: reduce) {
+    .circle { will-change:auto; }
+  }
+  /* 窄屏改上下布局，画布保持 16:9（与 launch-splash.html 一致） */
+  @media (max-width:900px) {
+    body { flex-direction:column; }
+    .canvas-area { padding:16px; flex:0 0 auto; }
+    .control-panel {
+      width:auto; flex:1 1 auto; border-left:none; border-top:1px solid var(--line);
+      box-shadow:0 -5px 20px rgba(0,0,0,.3);
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="canvas-area">
+  <div class="screen" id="screen"><div id="stage"></div></div>
+</div>
+
+<aside class="control-panel">
+  <div class="panel-title">动态扩散圆环 · 脉冲感循环</div>
+  <div class="panel-desc">按间隔生成径向渐变圆环，尺寸放大与透明度渐隐双轨并行；纯 DOM + CSS + Web Animations，无 Canvas、无外部素材</div>
+
+  <div class="sec">生成与尺寸</div>
+  <div class="ctl"><label for="rng-interval">生成间隔</label><span class="val-tag" id="val-interval">1.0s</span></div>
+  <input type="range" id="rng-interval" min="0.1" max="3" step="0.1" value="1.0">
+  <div class="ctl"><label for="rng-size">最大尺寸（参考 1024px 画布）</label><span class="val-tag" id="val-size">350px</span></div>
+  <input type="range" id="rng-size" min="100" max="1000" step="10" value="350">
+
+  <div class="sec">节奏与曲线</div>
+  <div class="ctl"><label for="rng-appear">产生时长（扩散）</label><span class="val-tag" id="val-appear">2.5s</span></div>
+  <input type="range" id="rng-appear" min="0.1" max="4" step="0.1" value="2.5">
+  <div class="ctl"><label for="rng-disappear">消失时长（渐隐）</label><span class="val-tag" id="val-disappear">0.5s</span></div>
+  <input type="range" id="rng-disappear" min="0.1" max="3" step="0.1" value="0.5">
+  <div class="ctl"><label for="sel-appear-ease">尺寸放大速度曲线</label></div>
+  <select id="sel-appear-ease"></select>
+  <div class="ctl"><label for="sel-disappear-ease">透明度渐隐曲线</label></div>
+  <select id="sel-disappear-ease"></select>
+
+  <div class="sec">径向渐变三色标</div>
+  <div class="ctl"><label for="rng-op0">0% 处透明度</label><span class="val-tag" id="val-op0">0%</span></div>
+  <input type="range" id="rng-op0" min="0" max="1" step="0.01" value="0">
+  <div class="ctl"><label for="rng-op70">70% 处透明度</label><span class="val-tag" id="val-op70">20%</span></div>
+  <input type="range" id="rng-op70" min="0" max="1" step="0.01" value="0.20">
+  <div class="ctl"><label for="rng-op100">100% 处透明度</label><span class="val-tag" id="val-op100">47%</span></div>
+  <input type="range" id="rng-op100" min="0" max="1" step="0.01" value="0.47">
+
+  <div class="btns">
+    <button id="btn-play">暂停</button>
+    <button id="btn-replay">重播</button>
+    <button id="btn-reset">重置参数</button>
+  </div>
+  <div class="status" id="status">圆环 0 · 周期 3.0s · 间隔 1.0s</div>
+  <div class="note">
+    尺寸放大贯穿整个生命周期（产生 + 消失），渐隐从「产生时长」时刻开始，故渐隐阶段圆环仍在继续扩散 —— 这是原稿的脉冲手感，未改动。<br>
+    改任一参数都会清空并按新参数重建重播（含暂停态）；后台标签页暂停生成、恢复时重新对齐节奏；同时存在的圆环数上限 64。<br>
+    零随机数、纯时间驱动，无需种子；「重播」即可复现首帧。
+  </div>
+</aside>
+
+<script>
+"use strict";
+(() => {
+  const $ = id => document.getElementById(id);
+  const screenEl = $('screen'), stage = $('stage');
+
+  /* 原稿 9 项默认参数，全部保留 */
+  const DEFAULTS = {
+    interval:1.0, size:350, appearDur:2.5, disappearDur:0.5,
+    appearEase:'ease-out', disappearEase:'ease-out',
+    op0:0, op70:0.20, op100:0.47
+  };
+  const cfg = Object.assign({}, DEFAULTS);
+
+  const EASE_OPTIONS = [
+    ['linear','linear (匀速)'], ['ease','ease (默认)'],
+    ['ease-in','ease-in (慢进快出)'], ['ease-out','ease-out (快进慢出)'],
+    ['ease-in-out','ease-in-out (慢进慢出)'],
+    ['cubic-bezier(0.50, 0.00, 0.75, 0.00)','Quart-in'],
+    ['cubic-bezier(0.25, 1.00, 0.50, 1.00)','Quart-out'],
+    ['cubic-bezier(0.25, 0.10, 0.25, 1.00)','Quart-2'],
+    ['cubic-bezier(0.75, 0.00, 0.75, 0.90)','Quart-3']
+  ];
+  for(const id of ['sel-appear-ease','sel-disappear-ease']){
+    const sel = $(id);
+    for(const [v,t] of EASE_OPTIONS){
+      const o=document.createElement('option'); o.value=v; o.textContent=t; sel.appendChild(o);
+    }
+  }
+  $('sel-appear-ease').value = cfg.appearEase;
+  $('sel-disappear-ease').value = cfg.disappearEase;
+
+  const REF_W = 1024;                 // 参考画布宽度：px 参数按预览画布等比缩放
+  const MAX_RINGS = 64;               // 并发节点上限，防极端参数 / 后台恢复积压
+  const reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  let rings = [];                     // { el, anims }
+  let timer = null, running = !reduced, pending = null;
+  let ro = null;
+
+  const totalMs  = () => (cfg.appearDur + cfg.disappearDur) * 1000;
+  const appearOff = () => cfg.appearDur / Math.max(0.001, cfg.appearDur + cfg.disappearDur);
+  const scale    = () => (screenEl.clientWidth || REF_W) / REF_W;
+
+  function updateStatus(){
+    $('status').textContent = '圆环 ' + rings.length + ' · 周期 ' +
+      (cfg.appearDur + cfg.disappearDur).toFixed(1) + 's · 间隔 ' +
+      cfg.interval.toFixed(1) + 's' + (running ? '' : ' · 已暂停');
+  }
+
+  /* 单个圆环：原稿 radial-gradient 三色标 + 两段 WAAPI 动画，视觉算法原样保留 */
+  function spawnCircle(pausedAt){
+    /* 上限保护：先淘汰最老的节点 */
+    while(rings.length >= MAX_RINGS){
+      const old = rings.shift();
+      old.anims.forEach(a => { try { a.cancel(); } catch(e){} });
+      old.el.remove();
+    }
+    const el = document.createElement('div');
+    el.className = 'circle';
+    const s = cfg.size * scale();
+    el.style.width  = s + 'px';
+    el.style.height = s + 'px';
+    el.style.background = 'radial-gradient(circle, ' +
+      'rgba(140,106,82,'   + cfg.op0   + ') 0%, ' +
+      'rgba(255,108,0,'    + cfg.op70  + ') 70%, ' +
+      'rgba(255,193,148,'  + cfg.op100 + ') 100%)';
+    stage.appendChild(el);
+
+    /* MDN 关键帧格式：easing 只作用于「该帧 → 下一帧」；
+       尺寸动画只有一个区间，故 easing 贯穿整个生命周期（原稿设计，保留）。
+       透明度动画在 appearOffset 处分段，第二段 easing 才是渐隐曲线。 */
+    const a1 = el.animate([
+      { transform:'translate(-50%,-50%) scale(0)',   easing:cfg.appearEase },
+      { transform:'translate(-50%,-50%) scale(1.5)' }
+    ], { duration:totalMs(), fill:'forwards' });
+
+    const a2 = el.animate([
+      { opacity:1, easing:'linear' },
+      { opacity:1, offset:appearOff(), easing:cfg.disappearEase },
+      { opacity:0 }
+    ], { duration:totalMs(), fill:'forwards' });
+
+    const rec = { el, anims:[a1,a2] };
+    rings.push(rec);
+
+    /* WAAPI 清理：finish 与 cancel 双通道都走同一个幂等 cleanup，
+       避免 onfinish 单槽被覆盖、以及取消动画后节点残留（MDN commitStyles 亦建议
+       不要长期保留 fill:'forwards' 动画）。 */
+    const cleanup = () => {
+      const i = rings.indexOf(rec);
+      if(i < 0) return;
+      rings.splice(i,1);
+      rec.anims.forEach(a => { try { a.cancel(); } catch(e){} });
+      el.remove();
+      updateStatus();
+    };
+    rec.anims.forEach(a => {
+      a.addEventListener('finish', cleanup);
+      a.addEventListener('cancel', cleanup);
+    });
+
+    /* 暂停 / 减弱动效：停在生命周期 55% 的可见静态帧 */
+    if(pausedAt != null){
+      rec.anims.forEach(a => { try { a.pause(); a.currentTime = pausedAt; } catch(e){} });
+    }
+    updateStatus();
+  }
+
+  /* DEVELOPMENT.md 记过的坑：改参数要「重建节点重播」，不能只改配置等下一轮 */
+  function clearRings(){
+    const list = rings.slice();
+    rings.length = 0;
+    for(const r of list){
+      r.anims.forEach(a => { try { a.cancel(); } catch(e){} });
+      r.el.remove();
+    }
+  }
+  function stopTimer(){ if(timer){ clearInterval(timer); timer = null; } }
+  function startTimer(){
+    stopTimer();
+    timer = setInterval(() => spawnCircle(null), cfg.interval * 1000);
+  }
+  function rebuild(){
+    clearRings();
+    if(running && !reduced){
+      spawnCircle(null);
+      startTimer();
+    }else{
+      spawnCircle(totalMs() * 0.55);   // 静态可见帧，等价于「落终态」
+    }
+    updateStatus();
+  }
+  function scheduleRebuild(){
+    if(pending) clearTimeout(pending);
+    pending = setTimeout(() => {
+      pending = null;
+      requestAnimationFrame(rebuild);   // 180ms 防抖 + 一帧 rAF，拖滑杆不逐帧重建
+    }, 180);
+  }
+  function setRunning(v){
+    running = v;
+    const b = $('btn-play');
+    b.textContent = v ? '暂停' : '继续';
+    b.classList.toggle('on', !v);
+    if(v){ rebuild(); }
+    else {
+      stopTimer();
+      rings.forEach(r => r.anims.forEach(a => { try { a.pause(); } catch(e){} }));
+      updateStatus();
+    }
+  }
+
+  /* ---------- 参数绑定 ---------- */
+  const fmt = {
+    interval:v => v.toFixed(1)+'s', size:v => Math.round(v)+'px',
+    appearDur:v => v.toFixed(1)+'s', disappearDur:v => v.toFixed(1)+'s',
+    op0:v => Math.round(v*100)+'%', op70:v => Math.round(v*100)+'%', op100:v => Math.round(v*100)+'%'
+  };
+  function bindRange(id, key, disp){
+    const el = $(id), out = $(disp);
+    el.addEventListener('input', e => {
+      cfg[key] = parseFloat(e.target.value);
+      out.textContent = fmt[key](cfg[key]);
+      scheduleRebuild();
+    });
+  }
+  bindRange('rng-interval',   'interval',      'val-interval');
+  bindRange('rng-size',       'size',          'val-size');
+  bindRange('rng-appear',     'appearDur',     'val-appear');
+  bindRange('rng-disappear',  'disappearDur',  'val-disappear');
+  bindRange('rng-op0',        'op0',           'val-op0');
+  bindRange('rng-op70',       'op70',          'val-op70');
+  bindRange('rng-op100',      'op100',         'val-op100');
+  for(const [id,key] of [['sel-appear-ease','appearEase'],['sel-disappear-ease','disappearEase']]){
+    $(id).addEventListener('change', e => { cfg[key] = e.target.value; scheduleRebuild(); });
+  }
+
+  $('btn-play').addEventListener('click', () => setRunning(!running));
+  $('btn-replay').addEventListener('click', () => { if(pending){clearTimeout(pending);pending=null;} rebuild(); });
+  $('btn-reset').addEventListener('click', () => {
+    if(pending){ clearTimeout(pending); pending = null; }
+    const pairs = [
+      ['rng-interval','interval'],['rng-size','size'],['rng-appear','appearDur'],
+      ['rng-disappear','disappearDur'],['rng-op0','op0'],['rng-op70','op70'],['rng-op100','op100']
+    ];
+    for(const [id,key] of pairs){
+      const el = $(id); el.value = DEFAULTS[key];
+      el.dispatchEvent(new Event('input',{bubbles:true}));
+    }
+    for(const [id,key] of [['sel-appear-ease','appearEase'],['sel-disappear-ease','disappearEase']]){
+      const el = $(id); el.value = DEFAULTS[key];
+      el.dispatchEvent(new Event('change',{bubbles:true}));
+    }
+    if(pending){ clearTimeout(pending); pending = null; }
+    rebuild();
+  });
+
+  /* ---------- 后台节流治理（依据：Chrome ≥88 后台定时器最小 1000ms，
+     恢复时积压回调集中爆发）——隐藏时停生成，恢复时清残留并重新对齐节奏。 */
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden){ stopTimer(); }
+    else if(running && !reduced && !timer){
+      clearRings();
+      spawnCircle(null);
+      startTimer();
+      updateStatus();
+    }
+  });
+
+  /* 预览画布尺寸变化：圆环 px 尺寸按参考宽度换算，需按新比例重建 */
+  if(window.ResizeObserver){
+    let rw = 0;
+    ro = new ResizeObserver(entries => {
+      const w = Math.round(entries[0].contentRect.width);
+      if(w && w !== rw){ rw = w; scheduleRebuild(); }
+    });
+    ro.observe(screenEl);
+  }
+
+  /* ---------- 启动 ---------- */
+  if(reduced){
+    $('btn-play').textContent = '继续';
+    $('btn-play').classList.add('on');
+  }
+  rebuild();
+})();
+</script>
+</body>
+</html>
