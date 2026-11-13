@@ -1,0 +1,15 @@
+# procedural-drawing-lab
+
+> 文档索引与机器可读入口：内容契约、类型化关系、证据与新鲜度。
+> 生成文件，勿手改。
+
+## Core
+
+- [README](./README.md)
+- [文档索引](./docs/index.md)
+
+## By type
+
+### reference
+
+- [文档索引](./docs/index.md) — procedural-drawing-lab 的文档入口：实验清单、目录规范、规则与开发说明。
