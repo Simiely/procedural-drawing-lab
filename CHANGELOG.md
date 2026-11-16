@@ -16,6 +16,15 @@
 - 工作台（Agent 工作台 / GitHub 同步看板）里已录入的 `v0.9.1`~`v0.9.3`
   同步记录同样属于历史留痕，不自动追改；如需对齐请单独补更新块。
 
+## [v0.15.1] - 2026-11-16
+
+文档维护：升级 repo-kit 2.5.3 / 单项目规范 2.1.2，不改实验内容。
+
+- 重装 kit，`schema/kit.lock.json` 写入 `v2.5.3 / spec 2.1.2`
+- `schema/taxonomy.json` 首次纳入 `DEVELOPMENT.md` 与 `CHANGELOG.md`（此前不在扫描范围）
+- CI 无需改动：无 `sources.json`，按规范 1.5 的 B 档（check + generate + lock）
+- 验收：`REPO CHECK: PASS`（ERROR=0、WARN=0、pages=1）、`GENERATE CHECK: PASS`
+
 ## [v0.15.0] - 2026-11-16
 ### 新增
 - 新增品牌动效类实验「模块化纯色充能 Modular Charge」：SVG 模块三层（暗色底座 → 深绿 `#00b35e` 填充 → 浅绿 `#88ffbb` 光带），`clipPath` 双矩形控制闪电自下而上充能，`stroke-dasharray` / `stroke-dashoffset` 控制圆环均匀扫光；单一时间轴按 `FLASH_TIME_RATIO=0.4` 分两段循环
