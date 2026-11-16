@@ -16,6 +16,30 @@
 - 工作台（Agent 工作台 / GitHub 同步看板）里已录入的 `v0.9.1`~`v0.9.3`
   同步记录同样属于历史留痕，不自动追改；如需对齐请单独补更新块。
 
+## [v0.15.0] - 2026-11-16
+### 新增
+- 新增品牌动效类实验「模块化纯色充能 Modular Charge」：SVG 模块三层（暗色底座 → 深绿 `#00b35e` 填充 → 浅绿 `#88ffbb` 光带），`clipPath` 双矩形控制闪电自下而上充能，`stroke-dasharray` / `stroke-dashoffset` 控制圆环均匀扫光；单一时间轴按 `FLASH_TIME_RATIO=0.4` 分两段循环
+- 2 滑杆（循环速度 800–4000ms，默认 2000；光带长度 20–150，默认 60）+ 暂停 / 重播 / 重置参数 3 按钮；1100×760 下右侧 340px 面板无需滚动（实测 fit=1，scroll=client=760）
+- 动画零随机数、纯确定性，无需种子；「重播」把相位归零即复现首帧（实测两次重播指纹一致）
+- 新增真实截图 `screenshots/module-charge.png`（1100×760，连拍 5 张按绿色像素占比挑帧，选中帧占比 0.01939），README 索引与 index 第 15 张卡片已登记
+### 变更
+- **版式按 DEVELOPMENT.md 的「品牌动效类」架构**：原稿为「240px 图标 + 260px 控件」居中双栏卡片，改为仓库已有的「左侧 16:9 预览画布（`container-type: size`，图标尺寸用 `cqh`）+ 右侧 340px 参数面板」，窄屏（≤900px）转上下布局 —— 与 `品牌动效/launch-splash.html`、`品牌动效/pulse-rings.html` 同族。实测 1100×760 下预览画布 680×383（16:9）、SVG 282×282
+- 分类据此归入 `品牌动效`（目录表里唯一标注「CSS / SVG 动画，无 Canvas」的已有分类，且 pulse-rings 已有「无 Canvas 但由 JS 驱动」的先例），未改 AGENTS 目录分类表
+- **注意：本实验没有 Canvas**，AGENTS 的 `devicePixelRatio` / `setTransform(DPR,...)` 条款是给 Canvas 绘图用的，此处不适用 —— SVG 由浏览器按设备像素比渲染，`viewBox 200×200` 逻辑坐标与 9 项几何常量（`Y_BOTTOM=160` / `Y_TOP=40` / `Y_RANGE=120` / `FLASH_TIME_RATIO=0.4` / 圆环 `getTotalLength()` / 光带偏移公式）全部原样保留
+- 保留原稿 `dir="rtl"` 的速度滑杆语义（RTL 镜像，值越小越快，回显 `2000 / cycleDuration`），不擅自改交互方向
+### 修复（原稿 / 整理版无头对照，同一 1100×760 视口）
+- **补暂停 / 重播 / 重置参数**：原稿 0 个按钮、只有无条件 `requestAnimationFrame` 循环；整理版 3 按钮，暂停态与 `prefers-reduced-motion` 下停掉常驻 rAF（不空转烧 CPU），重绘统一走 `requestRedraw()`
+- **修复暂停态调参失效**：按 AGENTS「参数滑杆若只改状态、把重绘全交给 rAF 循环，暂停态会失效」坑，统一 `requestRedraw()` + `applyTrail()` 入口；实测暂停态把光带 60→120，闪电光带矩形 `y` 40→-20、圆环虚线偏移 60→120，当帧即变
+- **修复改循环速度相位跳变**：原稿 `(now - startTime) % cycleDuration` 在 `cycleDuration` 改变时相位突变（实测圆环 `strokeDashoffset` 由 85.17 跳到 263.278）；整理版改用「累计动画时间 + 按当前相位换算到新周期」，实测相位 69%→72%（仅正常帧推进，无跳变）
+- **修复后台标签页恢复跳变**：单帧 `delta` 钳制 50ms（MDN 明确后台 rAF 暂停），动画时间与墙钟解耦
+- **补 `prefers-reduced-motion: reduce` 降级**：原稿降级下仍持续运动（实测两次采样闪电 `y` 121.6→40、圆环偏移 361.145→254.005）；整理版停在静态可见帧（相位 67%，闪电已满 + 圆环扫到中段），两次采样指纹一致，按钮显示「继续」可手动播放，并监听 `change` 实时切换
+- **补启动首帧**：原稿靠 HTML 属性写死 `stroke-dasharray=1000` 防闪烁，但 JS 初始化会用 `getTotalLength()` 的真实值 361.145 覆盖该属性、且 rAF 首帧之前不补画；整理版 `applyTrail()` + `render(phase())` 同步补画，避免无人值守截图闪现未初始化状态
+- 修正光带长度只改 `strokeDasharray` 与裁剪矩形高度、未同步 `strokeDashoffset` 的不一致；清理原稿遗留的尾随空格，UI 标签与注释统一中文
+### 机器层
+- **按 2026-11-13 接入的 repo-kit 2.4.0 / spec 2.0.0 规范**：`AGENTS.md` 已是生成文件，本轮不手改，改为编辑 `schema/agents.template.md` 的文档基线行后运行 `python tools/repo-kit/generate.py --root . --write` 重建 5 个生成产物
+- 文档基线行按模板要求填「新日期 + 新版本 + **真实 commit hash**」；因单 commit 的 hash 在写入前不可知，拆为 `feat`（实验与四件套）与 `docs`（模板 + 生成文件回填）两个快进提交，后者引用前者的短 hash
+- 本地预跑 CI 三道闸门：`check_repo.py --root .`、`generate.py --root . --check`、`kit.lock.json` 四个 kit 文件 SHA256 复核（等价 `update-repo-kit.ps1 -Check`）
+
 ## [v0.14.0] - 2026-11-12
 ### 新增
 - 新增粒子动势类实验「沙漠行驶 · 沙粒扬起 Desert Sand Lift」：**俯视**沙丘上小车自主寻路（`pickTarget` 定时换目标 + 边界斥力 + 转向限速），车尾**沙粒 / 尘土两套参数完全独立**喷发；沙粒小而实、快速飞散消散，尘土为大而柔的径向渐变云团、随寿命扩散淡出，两者均受风力吹散与阻力衰减。沙丘由 fbm 噪声高度场**离屏静态生成**（`alpha:false` + 1:1 像素映射），不逐帧重算，杜绝地形闪烁

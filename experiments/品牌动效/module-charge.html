@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>模块化纯色充能 · Modular Charge</title>
+<style>
+  :root { --acc:#88ffbb; --deep:#00b35e; --bg:#121212; --panel:#1e1e1e; --line:#333; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html,body { height:100%; }
+  body {
+    display:flex; height:100vh; overflow:hidden; background:var(--bg); color:#e0e0e0;
+    font:12px/1.5 -apple-system,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+  }
+
+  /* ====== 左侧 16:9 预览画布（DEVELOPMENT.md「品牌动效类」架构） ====== */
+  .canvas-area {
+    flex:1; display:flex; align-items:center; justify-content:center;
+    padding:40px; background:#1a1a1a; overflow:hidden;
+  }
+  .screen {
+    width:100%; max-width:1024px; aspect-ratio:16/9; background:#0f0f0f;
+    position:relative; border:1px solid var(--line); border-radius:4px;
+    box-shadow:0 20px 50px rgba(0,0,0,.5); overflow:hidden;
+    container-type:size;
+  }
+  .icon-wrap {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    /* cqh 只用于静态布局属性；本实验无 @keyframes，不触发容器单位卡帧坑 */
+    width:74cqh; height:74cqh;
+  }
+  svg { width:100%; height:100%; overflow:visible; display:block; }
+
+  /* 基础暗色图形 */
+  .base-stroke { fill:none; stroke:rgba(255,255,255,.08); stroke-width:16; stroke-linecap:round; stroke-linejoin:round; }
+  .base-fill   { fill:rgba(255,255,255,.08); }
+  /* 深绿底色模块 */
+  .green-stroke { fill:none; stroke:#00b35e; stroke-width:16; stroke-linecap:round; stroke-linejoin:round; }
+  .green-fill   { fill:#00b35e; }
+  /* 浅绿光带模块（无发光，纯色） */
+  .spark-stroke { fill:none; stroke:#88ffbb; stroke-width:16; stroke-linecap:round; stroke-linejoin:round; }
+  .spark-fill   { fill:#88ffbb; }
+
+  /* ====== 右侧参数面板 ====== */
+  .control-panel {
+    width:340px; flex:0 0 340px; background:var(--panel);
+    border-left:1px solid var(--line); display:flex; flex-direction:column;
+    padding:16px 18px 18px; overflow-y:auto; box-shadow:-5px 0 20px rgba(0,0,0,.3); z-index:100;
+  }
+  .control-panel::-webkit-scrollbar { width:6px; }
+  .control-panel::-webkit-scrollbar-thumb { background:#3a3a3a; border-radius:3px; }
+  .panel-title { font-size:15px; font-weight:600; color:#fff; }
+  .panel-desc { margin:4px 0 10px; font-size:10.5px; color:#888; line-height:1.55; }
+
+  .sec {
+    margin:9px 0 6px; padding-bottom:3px; border-bottom:1px dashed #3a3a3a;
+    font-size:10px; font-weight:600; letter-spacing:1px; color:var(--acc);
+  }
+  .ctl { display:flex; align-items:center; justify-content:space-between; gap:8px;
+         margin-bottom:2px; font-size:11.5px; color:#ccc; }
+  .ctl label { flex:1; min-width:0; cursor:pointer; }
+  .val-tag {
+    flex:0 0 auto; background:rgba(136,255,187,.13); color:var(--acc); padding:1px 6px;
+    border-radius:4px; font:11px/1.4 ui-monospace,Menlo,monospace; font-variant-numeric:tabular-nums;
+  }
+  input[type=range] {
+    -webkit-appearance:none; appearance:none; display:block; width:100%; height:3px;
+    border-radius:3px; background:#3a3a3a; outline:none; margin:3px 0 9px; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:12px; height:12px; border-radius:50%;
+    background:var(--acc); cursor:pointer; box-shadow:0 0 0 3px rgba(136,255,187,.16);
+  }
+  input[type=range]::-moz-range-thumb {
+    width:12px; height:12px; border:none; border-radius:50%;
+    background:var(--acc); cursor:pointer; box-shadow:0 0 0 3px rgba(136,255,187,.16);
+  }
+  .hint { margin:-6px 0 8px; font-size:10px; color:#6f6f6f; line-height:1.5; }
+
+  .btns { display:flex; gap:6px; margin-top:10px; }
+  .btns button {
+    flex:1; padding:7px 0; border:1px solid #444; border-radius:8px; background:#2a2a2a;
+    color:#eee; font-size:11.5px; cursor:pointer; font-family:inherit; transition:.15s;
+  }
+  .btns button:hover { border-color:#666; color:#c9ffdf; }
+  .btns button.on { border-color:rgba(136,255,187,.6); color:#c9ffdf; background:#17301f; }
+
+  .status {
+    margin-top:9px; padding:7px 9px; border-radius:7px; background:#262626;
+    color:#9be8bd; font:10.5px/1.5 ui-monospace,Menlo,monospace;
+    font-variant-numeric:tabular-nums;
+  }
+  .note {
+    margin-top:9px; padding-top:9px; border-top:1px solid var(--line);
+    font-size:10px; color:#7a7a7a; line-height:1.6;
+  }
+
+  /* 窄屏改上下布局，画布保持 16:9（与 launch-splash.html / pulse-rings.html 一致） */
+  @media (max-width:900px) {
+    body { flex-direction:column; }
+    .canvas-area { padding:16px; flex:0 0 auto; }
+    .control-panel {
+      width:auto; flex:1 1 auto; border-left:none; border-top:1px solid var(--line);
+      box-shadow:0 -5px 20px rgba(0,0,0,.3);
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="canvas-area">
+  <div class="screen">
+    <div class="icon-wrap">
+      <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="模块化纯色充能图标">
+        <defs>
+          <!-- 【闪电模块专用】深绿底色裁剪框 -->
+          <clipPath id="clip-flash-green">
+            <rect id="rect-flash-green" x="0" y="160" width="200" height="200" />
+          </clipPath>
+          <!-- 【闪电模块专用】浅绿光带裁剪框 -->
+          <clipPath id="clip-flash-spark">
+            <rect id="rect-flash-spark" x="0" y="160" width="200" height="60" />
+          </clipPath>
+        </defs>
+
+        <!-- 1. 底座 -->
+        <path class="base-stroke" d="M 105 20 A 80 80 0 1 1 20 110" />
+        <path class="base-fill" d="M 105 40 L 70 110 L 95 110 L 80 160 L 125 90 L 100 90 Z" />
+
+        <!-- 2. 圆环模块：属性里写死 dasharray / offset，杜绝 JS 初始化前首帧闪烁 -->
+        <g id="module-ring">
+          <path id="ring-green" class="green-stroke"
+                d="M 105 20 A 80 80 0 1 1 20 110"
+                stroke-dasharray="1000" stroke-dashoffset="1000" />
+          <path id="ring-spark" class="spark-stroke"
+                d="M 105 20 A 80 80 0 1 1 20 110"
+                stroke-dasharray="60 1000" stroke-dashoffset="60" />
+        </g>
+
+        <!-- 3. 闪电模块 -->
+        <g id="module-flash">
+          <path class="green-fill"
+                d="M 105 40 L 70 110 L 95 110 L 80 160 L 125 90 L 100 90 Z"
+                clip-path="url(#clip-flash-green)" />
+          <path class="spark-fill"
+                d="M 105 40 L 70 110 L 95 110 L 80 160 L 125 90 L 100 90 Z"
+                clip-path="url(#clip-flash-spark)" />
+        </g>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<aside class="control-panel">
+  <div class="panel-title">模块化纯色充能</div>
+  <div class="panel-desc">SVG 模块分层：暗色底座 → 深绿填充 → 浅绿光带。单一时间轴先给闪电充能，再沿圆环扫光，两段循环。</div>
+
+  <div class="sec">节奏与光带</div>
+  <div class="ctl"><label for="speed">循环速度</label><span class="val-tag" id="speed-val">1.0x</span></div>
+  <input type="range" id="speed" min="800" max="4000" step="100" value="2000" dir="rtl">
+  <div class="hint">滑杆向右为加速（dir=rtl 镜像，值越小越快）；改速度保持当前相位不跳变。</div>
+
+  <div class="ctl"><label for="length">光带长度</label><span class="val-tag" id="length-val">60</span></div>
+  <input type="range" id="length" min="20" max="150" step="10" value="60">
+  <div class="hint">同时作用于闪电前沿浅绿段与圆环扫光的虚线段。</div>
+
+  <div class="btns">
+    <button id="btn-pause">暂停</button>
+    <button id="btn-replay">重播</button>
+    <button id="btn-reset">重置参数</button>
+  </div>
+
+  <div class="status" id="status">阶段：闪电充能 · 相位 0%</div>
+  <div class="note">
+    纯确定性动画（零随机数），无需种子；「重播」把相位归零即可复现首帧。
+    prefers-reduced-motion: reduce 下停在静态可见帧，可手动继续。
+    本实验无 Canvas，AGENTS 的 devicePixelRatio / setTransform 条款不适用；
+    SVG 由浏览器按设备像素比渲染，viewBox 200×200 逻辑坐标不变。
+  </div>
+</aside>
+
+<script>
+"use strict";
+/* ============================================================
+   模块化纯色充能 · 单一时间轴
+   阶段 A（0 ~ 40%）：闪电自下而上充能，光带紧贴绿色顶部
+   阶段 B（40% ~ 100%）：闪电锁定填满，圆环深绿画出 + 浅绿光带跟随
+   原稿绘制算法、两阶段配比、9 项几何常量与 2 项默认参数全部保留
+   ============================================================ */
+
+const $ = id => document.getElementById(id);
+
+// ---- DOM ----
+const speedSlider = $("speed"), lengthSlider = $("length");
+const speedVal = $("speed-val"), lengthVal = $("length-val");
+const rectFlashGreen = $("rect-flash-green"), rectFlashSpark = $("rect-flash-spark");
+const ringGreen = $("ring-green"), ringSpark = $("ring-spark");
+const btnPause = $("btn-pause"), btnReplay = $("btn-replay"), btnReset = $("btn-reset");
+const statusEl = $("status");
+
+// ---- 参数（默认值与原稿一致） ----
+const DEFAULTS = { cycleDuration: 2000, trailLength: 60 };
+const S = {
+  cycleDuration: DEFAULTS.cycleDuration,
+  trailLength: DEFAULTS.trailLength,
+  running: true,
+  animTime: 0,          // 累计动画时间（ms），与墙钟解耦
+  lastTs: null          // 上一帧时间戳，用于钳制 delta
+};
+
+// ---- 几何常量（原稿原样） ----
+const FLASH_TIME_RATIO = 0.4;
+const Y_BOTTOM = 160, Y_TOP = 40, Y_RANGE = Y_BOTTOM - Y_TOP; // 120
+
+// 圆环路径总长：getTotalLength() 返回 user units 的路径总长（MDN SVGGeometryElement）
+const lenRing = ringGreen.getTotalLength();
+
+// 初始化虚线：用真实路径长度覆盖属性里的写死值
+function applyTrail() {
+  ringGreen.style.strokeDasharray = String(lenRing);
+  ringGreen.style.strokeDashoffset = String(lenRing);
+  ringSpark.style.strokeDasharray = `${S.trailLength} ${lenRing}`;
+  rectFlashSpark.setAttribute("height", String(S.trailLength));
+}
+
+// ---- 单一时间轴渲染：给定相位 p ∈ [0,1)，一次性写入全部 SVG 状态 ----
+function render(p) {
+  if (p <= FLASH_TIME_RATIO) {
+    // ===== 阶段 A：闪电充能 =====
+    const localP = p / FLASH_TIME_RATIO;
+    const currentY = Y_BOTTOM - Y_RANGE * localP;
+
+    rectFlashGreen.setAttribute("y", String(currentY));
+    rectFlashGreen.setAttribute("height", "200");           // 保证覆盖到底部
+    rectFlashSpark.setAttribute("y", String(currentY - S.trailLength));
+
+    ringGreen.style.strokeDashoffset = String(lenRing);      // 圆环隐藏
+    ringSpark.style.strokeDashoffset = String(S.trailLength);
+    statusEl.textContent = `阶段：闪电充能 · 相位 ${Math.round(p * 100)}%`;
+  } else {
+    // ===== 阶段 B：圆环扫光 =====
+    const localP = (p - FLASH_TIME_RATIO) / (1 - FLASH_TIME_RATIO);
+
+    rectFlashGreen.setAttribute("y", String(Y_TOP));        // 闪电锁定填满
+    rectFlashSpark.setAttribute("y", String(Y_TOP - 500));  // 光带移出视野
+
+    const currentDash = lenRing * localP;
+    ringGreen.style.strokeDashoffset = String(lenRing - currentDash);
+    const sparkOffset = S.trailLength - (currentDash + S.trailLength * localP);
+    ringSpark.style.strokeDashoffset = String(sparkOffset);
+    statusEl.textContent = `阶段：圆环扫光 · 相位 ${Math.round(p * 100)}%`;
+  }
+}
+
+// ---- 统一重绘入口：暂停态改参数也立即生效（AGENTS「暂停态失效」坑） ----
+let pending = false;
+function requestRedraw() {
+  if (pending) return;
+  pending = true;
+  requestAnimationFrame(() => {
+    pending = false;
+    render(phase());
+  });
+}
+function phase() {
+  return (S.animTime % S.cycleDuration) / S.cycleDuration;
+}
+
+// ---- 动画循环：累计时间 + delta 钳制，后台标签页恢复不跳相位 ----
+// 暂停 / reduced-motion 下不常驻 rAF（避免空转烧 CPU），重绘交给 requestRedraw()
+let rafId = null;
+function tick(now) {
+  if (!S.running) { rafId = null; return; }
+  if (S.lastTs === null) S.lastTs = now;
+  const dt = Math.min(Math.max(now - S.lastTs, 0), 50); // 钳制单帧增量（MDN rAF 后台暂停）
+  S.lastTs = now;
+  S.animTime += dt;
+  render(phase());
+  rafId = requestAnimationFrame(tick);
+}
+function startLoop() {
+  if (rafId === null) rafId = requestAnimationFrame(tick);
+}
+function stopLoop() {
+  if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+}
+
+// ---- UI 绑定 ----
+function speedLabel() {
+  speedVal.textContent = (2000 / S.cycleDuration).toFixed(1) + "x";
+}
+function lengthLabel() {
+  lengthVal.textContent = String(S.trailLength);
+}
+
+speedSlider.addEventListener("input", e => {
+  // 相位连续：按当前相位换算到新周期，避免 (now-start)%newDuration 突跳
+  const p = phase();
+  S.cycleDuration = parseInt(e.target.value, 10);
+  S.animTime = p * S.cycleDuration;
+  speedLabel();
+  requestRedraw();
+});
+
+lengthSlider.addEventListener("input", e => {
+  S.trailLength = parseInt(e.target.value, 10);
+  applyTrail();
+  lengthLabel();
+  requestRedraw();
+});
+
+btnPause.addEventListener("click", () => {
+  S.running = !S.running;
+  S.lastTs = null;                 // 恢复时不起算暂停期间的时间
+  btnPause.textContent = S.running ? "暂停" : "继续";
+  btnPause.classList.toggle("on", !S.running);
+  if (S.running) startLoop(); else stopLoop();
+  requestRedraw();
+});
+
+btnReplay.addEventListener("click", () => {
+  S.animTime = 0;
+  S.lastTs = null;
+  render(0);                       // 相位归零立即呈现，无需等 rAF
+});
+
+btnReset.addEventListener("click", () => {
+  const p = phase();
+  S.cycleDuration = DEFAULTS.cycleDuration;
+  S.trailLength = DEFAULTS.trailLength;
+  S.animTime = p * S.cycleDuration;
+  speedSlider.value = String(S.cycleDuration);
+  lengthSlider.value = String(S.trailLength);
+  applyTrail();
+  speedLabel();
+  lengthLabel();
+  requestRedraw();
+});
+
+// ---- 初始化 ----
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+function syncMotionUI() {
+  btnPause.textContent = S.running ? "暂停" : "继续";
+  btnPause.classList.toggle("on", !S.running);
+}
+function initMotion() {
+  if (reduceMotion.matches) {
+    // 停在静态可见帧：闪电已满 + 圆环扫到中段（MDN prefers-reduced-motion 降级）
+    S.running = false;
+    S.animTime = (FLASH_TIME_RATIO + 0.6 * 0.45) * S.cycleDuration;
+  } else {
+    S.running = true;
+  }
+  syncMotionUI();
+}
+if (reduceMotion.addEventListener) {
+  reduceMotion.addEventListener("change", () => {
+    initMotion();
+    S.lastTs = null;
+    if (S.running) startLoop(); else stopLoop();
+    requestRedraw();
+  });
+}
+
+applyTrail();
+speedLabel();
+lengthLabel();
+initMotion();
+render(phase());          // 启动同步补画首帧，避免 rAF 之前空画面
+if (S.running) startLoop();
+</script>
+</body>
+</html>
