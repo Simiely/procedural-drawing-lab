@@ -20,9 +20,21 @@
 5. 出一张**真实截图**存到 `screenshots/<英文 slug>.png`（尺寸对齐同分类已有截图）
 6. 在 `index.html` 的 `EXPERIMENTS` 数组加一张卡片（标题 / 说明 / 分类 / 标签 / 截图路径）
 7. 更新 README 实验索引表（行序与 index 卡片顺序保持一致）+ CHANGELOG 追加版本
-8. 更新 AGENTS.md 顶部「文档基线」行（新日期 + 新版本 + commit 主题）
+8. 更新**文档基线**：编辑 `schema/agents.template.md` 顶部的「文档基线」行（新日期 + 新版本 + **真实 commit hash**），再运行 `python tools/repo-kit/generate.py --root . --write` 重建 `AGENTS.md`、`llms.txt` 与 `docs/_generated/*`。`AGENTS.md` 是生成文件，**禁止手改**
 
-> 第 5～8 步是硬性要求：漏登记会留下"有截图没卡片、有实验没索引"的不一致状态。
+> 第 5～8 步是硬性要求：漏登记会留下"有截图没卡片、有实验没索引"的不一致状态。第 8 步必须走「改模板 → 重生成」，直接改 `AGENTS.md` 会被 `generate.py --check` 判 `GENERATED_STALE`，CI 直接红灯。
+>
+> 基线行要填真实 commit hash，而单 commit 的 hash 在写入前不可知：按仓库现行做法拆成两个快进提交——`feat`（实验 + 四件套）与 `docs`（模板基线行 + 生成文件回填），后者引用前者的短 hash；也可用本地 git 预计算 commit 对象 sha 后单提交回填。
+
+## 机器层校验（repo-kit 2.4.0 / spec 2.0.0）
+
+2026-11-13 接入。push / PR 到 `main` 时 `.github/workflows/repo-check.yml` 自动跑三道闸门：
+
+1. `python tools/repo-kit/check_repo.py --root .` —— frontmatter 词表与字段闭集、`source` 指向仓库内真实文件、链接与锚点、新鲜度
+2. `python tools/repo-kit/generate.py --root . --check` —— 5 个生成文件是否与模板 / 页面一致
+3. `tools/update-repo-kit.ps1 -Check` —— 按 `schema/kit.lock.json` 复核 4 个 kit 文件的 SHA256
+
+推送前本地先跑一遍。改 `schema/agents.template.md` 或新增 `docs/` 页面后，必须 `--write` 重建再 `--check`。范围边界见 `schema/taxonomy.json`：`experiments/**`、`screenshots/**`、`.github/**`、`**/__pycache__/**` 在 ignore 里；`README.md` / `CHANGELOG.md` 免 frontmatter；`docs/` 下每页要有完整 frontmatter，`id` 点分小写、字段闭集、词表受控。
 
 ## 关键问题与方案（一坑一篇，格式与 knowledge-base 一致）
 
@@ -67,4 +79,4 @@
 
 ---
 
-> 生长式规则：README 超 150 行拆 docs/使用指南.md、docs/API.md；AGENTS 超 150 词拆 rules/*.md；本文件超 200 行拆 docs/架构.md、docs/问题记录/。
+> 生长式规则：README 超 150 行拆 docs/使用指南.md、docs/API.md；本文件超 200 行拆 docs/架构.md、docs/问题记录/。`AGENTS.md` 是生成文件，不再按词数手拆 `rules/*.md`，规则增删一律改 `schema/agents.template.md` 后重生成；新增 docs 页要按 `docs/_template.md` 补齐 frontmatter 并纳入机器层校验。

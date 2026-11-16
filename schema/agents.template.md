@@ -1,7 +1,7 @@
 # AGENTS.md · 项目规则
 
 > 📌 **文档基线**：2026-11-16（v0.15.0，commit `0c33ebb`）新增模块化纯色充能实验并按机器层重建生成文件
-> **更新文档/代码后，请更新此行**（新日期 + 新 commit hash），并在 CHANGELOG 追加版本
+> **新增实验或变更规则基线时，请更新此行**（新日期 + 新版本 + 新 commit hash），并在 CHANGELOG 追加版本；纯维护修复不推进基线、不发版本
 >
 > 生成文件，勿手改。改规则请改 `schema/agents.template.md`，再运行 `python tools/repo-kit/generate.py --root . --write`。
 
@@ -50,10 +50,11 @@
 - 无需构建。本地预览：浏览器直接打开文件，或 `python -m http.server`
 - 截图（无头 Edge）：`msedge --headless=new --screenshot=out.png --window-size=..., --force-device-scale-factor=1 文件url`
   - **带入场动画的页面要多截几张挑**：`--virtual-time-budget` 只快进 `setTimeout/setInterval`，CSS 动画时钟仍走墙钟，同一 budget 可能截到起始帧（全黑）。取终态图的两种可靠办法：① 同参数连拍 3～5 张，用亮度指标挑（终态 `bright%`≈2.5、`mean`≈6.6；起始帧 `bright%`=0），别靠肉眼；② 加 `--force-prefers-reduced-motion` 让页面自身降级到终态再截
-- 发布：改 CHANGELOG + 更新 README 索引表 + index.html 卡片 + 本文档基线
+- 发布：改 CHANGELOG + 更新 README 索引表 + index.html 卡片 + 编辑 `schema/agents.template.md` 基线行后运行 `python tools/repo-kit/generate.py --root . --write`（`AGENTS.md` 为生成文件，勿手改）
 
-## 详细规则（生长式：本文件超 150 词后再拆分，目前内容仍内联在上面各节）
-- 拆分目标位置：`rules/技术栈.md`、`rules/常见坑.md`、`rules/实验规范.md` —— **尚未创建**，别去打开
+## 详细规则（机器层：唯一真源是 schema/agents.template.md）
+- 规则正文内联在上面各节；`AGENTS.md` 由模板与占位符生成，改完必须 `--write` 重建再 `--check`，不再按词数手拆
+- 旧文档提到的 `rules/技术栈.md` / `rules/常见坑.md` / `rules/实验规范.md` 从未创建，也不再作为拆分目标，别去打开
 
 ## 当前规模
 

@@ -50,7 +50,7 @@ experiments/
   几何生成/          # 参数化几何图形、星芒、分形图案
   径向扫描/          # 旋转光束、雷达扫描类径向动效
   品牌动效/          # 品牌 Logo 入场、启动动画、界面转场类动效
-  ...               # 新分类按需长出来（请登记到 AGENTS.md 目录表）
+  ...               # 新分类按需长出来（请登记到 schema/agents.template.md 的目录分类表并重生成）
 screenshots/        # 每个实验对应一张真实截图（<实验英文名>.png）
 ```
 
@@ -64,3 +64,5 @@ screenshots/        # 每个实验对应一张真实截图（<实验英文名>.p
 | [AGENTS.md](./AGENTS.md) | AI / 未来的你 | 技术栈、约定、目录分类、关键坑 |
 | [DEVELOPMENT.md](./DEVELOPMENT.md) | 开发者 | 架构、如何新增实验、问题记录 |
 | [CHANGELOG.md](./CHANGELOG.md) | 所有人 | 版本变更 |
+
+> `AGENTS.md` 由 `schema/agents.template.md` 经 `tools/repo-kit/generate.py --write` 生成，请勿手改；新增实验 / 改规则 / 跑 CI 闸门的完整流程见 [DEVELOPMENT.md](./DEVELOPMENT.md)。

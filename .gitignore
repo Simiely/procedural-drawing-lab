@@ -4,3 +4,7 @@ node_modules/
 .obsidian/
 Thumbs.db
 .DS_Store
+
+# Python 缓存（repo-kit 运行时生成，不入库）
+__pycache__/
+*.py[cod]
