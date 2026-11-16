@@ -1,6 +1,6 @@
 # AGENTS.md · 项目规则
 
-> 📌 **文档基线**：2026-11-16（v0.15.0，commit `0c33ebb`）新增模块化纯色充能实验并按机器层重建生成文件
+> 📌 **文档基线**：2026-11-16（v0.15.1，commit `8d59cfe`）升级 repo-kit 2.5.3 / 规范 2.1.2；四件套补齐扫描
 > **新增实验或变更规则基线时，请更新此行**（新日期 + 新版本 + 新 commit hash），并在 CHANGELOG 追加版本；纯维护修复不推进基线、不发版本
 >
 > 生成文件，勿手改。改规则请改 `schema/agents.template.md`，再运行 `python tools/repo-kit/generate.py --root . --write`。
